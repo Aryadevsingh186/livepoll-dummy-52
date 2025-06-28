@@ -147,7 +147,10 @@ class WebSocketService {
     const state = store.getState().poll;
     const allAnswered = state.students.every(s => s.hasAnswered);
     if (allAnswered && state.students.length > 0) {
-      setTimeout(() => this.endPollTimer(), 1000); // Small delay to show final results
+      setTimeout(() => {
+        store.dispatch(setShowResults(true));
+        this.broadcast('showResults', {});
+      }, 1000); // Show results after small delay when all answered
     }
   }
 

@@ -65,10 +65,10 @@ const TeacherDashboard: React.FC = () => {
                 <Users className="w-5 h-5 mr-2" />
                 {students.length} Students
               </Badge>
-              {currentPoll?.isActive && (
-                <Badge variant="secondary" className="bg-orange-600/90 text-white border-orange-500 backdrop-blur-sm text-lg px-4 py-2 animate-pulse font-semibold">
+              {currentPoll && (
+                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-600/90 animate-pulse' : 'bg-red-600/90'} text-white border-orange-500 backdrop-blur-sm text-lg px-4 py-2 font-semibold`}>
                   <Clock className="w-5 h-5 mr-2" />
-                  {timeRemaining}s left
+                  {currentPoll.isActive ? `${timeRemaining}s left` : 'Poll Ended'}
                 </Badge>
               )}
             </div>
@@ -119,6 +119,12 @@ const TeacherDashboard: React.FC = () => {
                             <span className="text-gray-300 font-bold text-lg">
                               {students.filter(s => s.hasAnswered).length}/{students.length} responses
                             </span>
+                            {currentPoll && (
+                              <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-500/90' : 'bg-gray-500/90'} text-white px-3 py-1`}>
+                                <Clock className="w-4 h-4 mr-1" />
+                                {currentPoll.isActive ? `${timeRemaining}s` : 'Finished'}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         {canCreateNewPoll && (
@@ -152,8 +158,8 @@ const TeacherDashboard: React.FC = () => {
                 </Card>
               )}
 
-              {/* Show results when poll is active and has votes or when poll ended */}
-              {currentPoll && (showResults || !currentPoll.isActive || students.some(s => s.hasAnswered)) && <PollResults />}
+              {/* Always show results when poll exists and has votes or when poll ended */}
+              {currentPoll && (students.some(s => s.hasAnswered) || !currentPoll.isActive) && <PollResults />}
             </div>
 
             <div>

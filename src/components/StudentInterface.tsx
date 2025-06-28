@@ -42,6 +42,13 @@ const StudentInterface: React.FC = () => {
     dispatch(setShowResults(false));
   });
 
+  // Show results when timer ends
+  useEffect(() => {
+    if (timeRemaining === 0 && currentPoll && !currentPoll.isActive) {
+      dispatch(setShowResults(true));
+    }
+  }, [timeRemaining, currentPoll, dispatch]);
+
   const handleJoin = (name: string) => {
     dispatch(setStudentName(name));
     sessionStorage.setItem('studentName', name);
@@ -52,7 +59,7 @@ const StudentInterface: React.FC = () => {
   const handleAnswerSubmit = (option: string) => {
     emit('submitVote', { studentName, option });
     setHasAnswered(true);
-    dispatch(setShowResults(true));
+    // Don't automatically show results - wait for poll to end or all answers
   };
 
   const handleLeavePoll = () => {
@@ -99,10 +106,10 @@ const StudentInterface: React.FC = () => {
                 <Users className="w-4 h-4 mr-1" />
                 {students.length} Students
               </Badge>
-              {currentPoll?.isActive && !hasAnswered && (
-                <Badge variant="secondary" className="bg-orange-600/90 text-white border-orange-500 backdrop-blur-sm animate-pulse font-semibold">
+              {currentPoll && (
+                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-600/90 animate-pulse' : 'bg-red-600/90'} text-white border-orange-500 backdrop-blur-sm font-semibold`}>
                   <Clock className="w-4 h-4 mr-1" />
-                  {timeRemaining}s left
+                  {currentPoll.isActive ? `${timeRemaining}s left` : 'Time Up!'}
                 </Badge>
               )}
               <Button
@@ -167,18 +174,26 @@ const StudentInterface: React.FC = () => {
                       />
                     </div>
                     <h2 className="text-2xl font-bold text-gray-100 mb-2">🎉 Answer Submitted!</h2>
-                    <p className="text-gray-300 text-lg font-medium">Amazing! Your response has been recorded. Check out the live results below!</p>
+                    <p className="text-gray-300 text-lg font-medium">
+                      {showResults || !currentPoll.isActive 
+                        ? "Check out the results below!" 
+                        : "Waiting for other students or timer to complete..."}
+                    </p>
                   </CardContent>
                 </Card>
               )}
-              <div className="text-center mb-6">
-                <img 
-                  src="https://images.unsplash.com/photo-1605810230434-7631ac76ec81?w=400&h=200&fit=crop"
-                  alt="Data visualization" 
-                  className="w-full max-w-lg h-48 mx-auto rounded-2xl object-cover border-4 border-gray-500 shadow-2xl"
-                />
-              </div>
-              <PollResults />
+              {(showResults || !currentPoll.isActive) && (
+                <>
+                  <div className="text-center mb-6">
+                    <img 
+                      src="https://images.unsplash.com/photo-1605810230434-7631ac76ec81?w=400&h=200&fit=crop"
+                      alt="Data visualization" 
+                      className="w-full max-w-lg h-48 mx-auto rounded-2xl object-cover border-4 border-gray-500 shadow-2xl"
+                    />
+                  </div>
+                  <PollResults />
+                </>
+              )}
             </div>
           )}
         </div>
