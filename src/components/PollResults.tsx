@@ -13,7 +13,7 @@ const PollResults: React.FC = () => {
   if (!currentPoll) return null;
 
   // Use the poll calculation utility for accurate results
-  const pollStats = calculateFromVoteCounts(currentPoll.options, currentPoll.votes);
+  const pollStats = calculateFromVoteCounts(currentPoll.options, currentPoll.votes || {});
   const votingProgress = getVotingProgress(
     students.length,
     students.filter(s => s.hasAnswered).length
@@ -42,15 +42,15 @@ const PollResults: React.FC = () => {
                 <span className="text-gray-900 font-medium text-lg flex-1">{result.option}</span>
               </div>
               <div className="text-right">
-                <div className="text-gray-900 font-bold text-lg">{result.votes} votes</div>
+                <div className="text-gray-900 font-bold text-lg">{result.votes} vote{result.votes !== 1 ? 's' : ''}</div>
                 <div className="text-gray-500 text-sm">{result.percentage}%</div>
               </div>
             </div>
             <div className="px-4 pb-4">
               <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div 
-                  className="bg-purple-600 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${result.percentage}%` }}
+                  className="bg-purple-600 h-full rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${Math.min(100, Math.max(0, result.percentage))}%` }}
                 />
               </div>
             </div>
