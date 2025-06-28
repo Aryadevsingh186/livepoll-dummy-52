@@ -1,4 +1,3 @@
-
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface Poll {
@@ -16,7 +15,7 @@ export interface Student {
   name: string;
   hasAnswered: boolean;
   isApproved: boolean;
-  selectedOption?: string; // Track what they voted for
+  selectedOption?: string;
 }
 
 export interface PendingStudent {
@@ -98,19 +97,23 @@ const pollSlice = createSlice({
       }
     },
     createPoll: (state, action: PayloadAction<{ question: string; options: string[]; maxTime: number }>) => {
-      // Create completely new poll - no history
+      // Create new poll with zero votes for each option
       const newPoll: Poll = {
         id: Date.now().toString(),
         question: action.payload.question,
         options: action.payload.options,
-        votes: action.payload.options.reduce((acc, option) => ({ ...acc, [option]: 0 }), {}),
+        votes: {},
         isActive: true,
         createdAt: Date.now(),
         maxTime: action.payload.maxTime,
       };
       
+      // Initialize votes to 0 for each option
+      action.payload.options.forEach(option => {
+        newPoll.votes[option] = 0;
+      });
+      
       state.currentPoll = newPoll;
-      // Reset all students for new poll
       state.students = state.students.map(s => ({ 
         ...s, 
         hasAnswered: false,
@@ -124,13 +127,20 @@ const pollSlice = createSlice({
         const student = state.students.find(s => s.name === action.payload.studentName);
         
         if (student && !student.hasAnswered) {
-          // Record the vote
-          state.currentPoll.votes[action.payload.option] = (state.currentPoll.votes[action.payload.option] || 0) + 1;
+          // Increment vote count for the selected option
+          if (state.currentPoll.votes[action.payload.option] !== undefined) {
+            state.currentPoll.votes[action.payload.option] += 1;
+          }
           
-          // Mark student as answered and record their choice
+          // Mark student as voted
           student.hasAnswered = true;
           student.selectedOption = action.payload.option;
         }
+      }
+    },
+    updatePollVotes: (state, action: PayloadAction<{ votes: { [option: string]: number } }>) => {
+      if (state.currentPoll) {
+        state.currentPoll.votes = action.payload.votes;
       }
     },
     setTimeRemaining: (state, action: PayloadAction<number>) => {
@@ -180,6 +190,7 @@ export const {
   rejectStudent,
   createPoll,
   submitVote,
+  updatePollVotes,
   setTimeRemaining,
   endPoll,
   setShowResults,

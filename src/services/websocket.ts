@@ -1,6 +1,5 @@
-
 import { store } from '../store';
-import { addPendingStudent, approveStudent, rejectStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, clearPoll } from '../store/pollSlice';
+import { addPendingStudent, approveStudent, rejectStudent, submitVote, updatePollVotes, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, clearPoll } from '../store/pollSlice';
 
 interface ChatMessage {
   id: string;
@@ -50,23 +49,17 @@ class WebSocketService {
         break;
         
       case 'createPoll':
-        // Stop any existing timer
         this.stopTimer();
         
-        // Create new poll
         store.dispatch(createPoll(data));
         
-        // Save to storage
         const newState = store.getState().poll;
         this.saveToStorage('currentPoll', newState.currentPoll);
         this.saveToStorage('students', newState.students);
         this.saveToStorage('timeRemaining', data.maxTime);
         this.saveToStorage('showResults', false);
         
-        // Broadcast to all
         this.broadcast('newPoll', newState.currentPoll);
-        
-        // Start timer
         this.startTimer(data.maxTime);
         break;
         
@@ -76,18 +69,21 @@ class WebSocketService {
         // Submit vote to store
         store.dispatch(submitVote(data));
         
-        // Get updated state and save
+        // Get updated state
         const updatedState = store.getState().poll;
+        
+        // Save updated poll and students
         this.saveToStorage('currentPoll', updatedState.currentPoll);
         this.saveToStorage('students', updatedState.students);
         
-        // Broadcast vote update
+        // Broadcast the updated vote counts to all clients
         this.broadcast('voteUpdate', {
+          pollId: updatedState.currentPoll?.id,
           votes: updatedState.currentPoll?.votes,
           students: updatedState.students
         });
         
-        // Check if all voted
+        // Check if all students have voted
         this.checkAllVoted();
         break;
         
@@ -262,6 +258,9 @@ class WebSocketService {
 
     if (currentPoll) {
       store.dispatch(createPoll(currentPoll));
+      // Update votes from storage
+      store.dispatch(updatePollVotes({ votes: currentPoll.votes }));
+      
       if (timeRemaining !== null && timeRemaining > 0) {
         store.dispatch(setTimeRemaining(timeRemaining));
         this.startTimer(timeRemaining);

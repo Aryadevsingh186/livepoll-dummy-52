@@ -11,7 +11,7 @@ const PollResults: React.FC = () => {
 
   if (!currentPoll) return null;
 
-  // Calculate total votes from the poll votes object
+  // Calculate total votes from poll votes object
   const totalVotes = Object.values(currentPoll.votes).reduce((sum, votes) => sum + votes, 0);
   const totalStudents = students.length;
 
@@ -42,7 +42,8 @@ const PollResults: React.FC = () => {
                   <span className="text-gray-900 font-medium text-lg flex-1">{option}</span>
                 </div>
                 <div className="text-right">
-                  <div className="text-gray-900 font-bold text-lg">{percentage}%</div>
+                  <div className="text-gray-900 font-bold text-lg">{votes} votes</div>
+                  <div className="text-gray-500 text-sm">{percentage}%</div>
                 </div>
               </div>
               <div className="px-4 pb-4">
@@ -51,9 +52,6 @@ const PollResults: React.FC = () => {
                     className="bg-purple-600 h-full rounded-full transition-all duration-500"
                     style={{ width: `${percentage}%` }}
                   />
-                </div>
-                <div className="text-sm text-gray-500 mt-2">
-                  {votes} vote{votes !== 1 ? 's' : ''} ({percentage}%)
                 </div>
               </div>
             </div>
