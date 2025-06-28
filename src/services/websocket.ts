@@ -111,6 +111,7 @@ class WebSocketService {
     const students = this.getFromStorage('students');
     const currentPoll = this.getFromStorage('currentPoll');
     const pollActive = this.getFromStorage('pollActive');
+    const timeRemaining = this.getFromStorage('timeRemaining');
 
     if (students) {
       students.forEach((student: any) => {
@@ -120,6 +121,12 @@ class WebSocketService {
 
     if (currentPoll && pollActive) {
       store.dispatch(createPoll(currentPoll));
+      if (timeRemaining !== null) {
+        store.dispatch(setTimeRemaining(timeRemaining));
+        if (timeRemaining > 0) {
+          this.startPollTimer(timeRemaining);
+        }
+      }
     }
   }
 
@@ -129,15 +136,18 @@ class WebSocketService {
     }
 
     let timeLeft = maxTime;
+    store.dispatch(setTimeRemaining(timeLeft));
     this.saveToStorage('timeRemaining', timeLeft);
     
     this.pollTimer = setInterval(() => {
       timeLeft -= 1;
+      console.log(`Timer: ${timeLeft} seconds remaining`);
       store.dispatch(setTimeRemaining(timeLeft));
       this.saveToStorage('timeRemaining', timeLeft);
       this.broadcast('timeUpdate', { timeRemaining: timeLeft });
 
       if (timeLeft <= 0) {
+        console.log('Timer ended - showing results');
         this.endPollTimer();
       }
     }, 1000);
@@ -147,10 +157,12 @@ class WebSocketService {
     const state = store.getState().poll;
     const allAnswered = state.students.every(s => s.hasAnswered);
     if (allAnswered && state.students.length > 0) {
+      console.log('All students answered - showing results');
       setTimeout(() => {
         store.dispatch(setShowResults(true));
         this.broadcast('showResults', {});
-      }, 1000); // Show results after small delay when all answered
+        this.saveToStorage('showResults', true);
+      }, 1000);
     }
   }
 
@@ -159,10 +171,13 @@ class WebSocketService {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+    console.log('Poll ended - setting results to show');
     store.dispatch(endPoll());
     store.dispatch(setShowResults(true));
     this.saveToStorage('pollActive', false);
+    this.saveToStorage('showResults', true);
     this.broadcast('pollEnded', {});
+    this.broadcast('showResults', {});
   }
 }
 

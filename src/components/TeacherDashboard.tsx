@@ -37,7 +37,7 @@ const TeacherDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-      {/* Background decoration with better contrast */}
+      {/* Background decoration */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-20 left-20 w-80 h-80 bg-blue-500 rounded-full blur-3xl"></div>
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500 rounded-full blur-3xl"></div>
@@ -46,7 +46,7 @@ const TeacherDashboard: React.FC = () => {
 
       <div className="relative z-10 p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Enhanced Header with better contrast */}
+          {/* Header */}
           <div className="flex justify-between items-center mb-8 bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 border border-gray-600 shadow-2xl">
             <div className="flex items-center space-x-4">
               <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
@@ -66,9 +66,9 @@ const TeacherDashboard: React.FC = () => {
                 {students.length} Students
               </Badge>
               {currentPoll && (
-                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-600/90 animate-pulse' : 'bg-red-600/90'} text-white border-orange-500 backdrop-blur-sm text-lg px-4 py-2 font-semibold`}>
-                  <Clock className="w-5 h-5 mr-2" />
-                  {currentPoll.isActive ? `${timeRemaining}s left` : 'Poll Ended'}
+                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-600/90 animate-pulse' : 'bg-red-600/90'} text-white border-orange-500 backdrop-blur-sm text-xl px-6 py-3 font-bold`}>
+                  <Clock className="w-6 h-6 mr-2" />
+                  {currentPoll.isActive ? `${timeRemaining}s` : 'Poll Ended'}
                 </Badge>
               )}
             </div>

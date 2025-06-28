@@ -7,10 +7,11 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import StudentJoin from './StudentJoin';
 import PollQuestion from './PollQuestion';
 import PollResults from './PollResults';
+import KickedOut from './KickedOut';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Users, Zap, BookOpen, LogOut } from 'lucide-react';
+import { Clock, Users, Zap, BookOpen, LogOut, Timer } from 'lucide-react';
 
 const StudentInterface: React.FC = () => {
   const dispatch = useDispatch();
@@ -18,6 +19,7 @@ const StudentInterface: React.FC = () => {
   const { emit, on } = useWebSocket();
   const [hasJoined, setHasJoined] = useState(false);
   const [hasAnswered, setHasAnswered] = useState(false);
+  const [isKickedOut, setIsKickedOut] = useState(false);
 
   useEffect(() => {
     const savedName = sessionStorage.getItem('studentName');
@@ -29,22 +31,42 @@ const StudentInterface: React.FC = () => {
   }, [dispatch, emit]);
 
   on('newPoll', () => {
+    console.log('New poll started - resetting state');
     setHasAnswered(false);
     dispatch(setShowResults(false));
   });
 
   on('pollEnded', () => {
+    console.log('Poll ended - showing results');
+    dispatch(setShowResults(true));
+  });
+
+  on('showResults', () => {
+    console.log('Show results event received');
     dispatch(setShowResults(true));
   });
 
   on('pollRemoved', () => {
+    console.log('Poll removed - resetting state');
     setHasAnswered(false);
     dispatch(setShowResults(false));
   });
 
-  // Show results when timer ends
+  on('studentRemoved', (data: { name: string }) => {
+    if (data.name === studentName) {
+      console.log('Student was kicked out');
+      setIsKickedOut(true);
+    }
+  });
+
+  on('timeUpdate', (data: { timeRemaining: number }) => {
+    console.log('Time update received:', data.timeRemaining);
+  });
+
+  // Show results when timer ends or all students answer
   useEffect(() => {
-    if (timeRemaining === 0 && currentPoll && !currentPoll.isActive) {
+    if (timeRemaining === 0 && currentPoll) {
+      console.log('Timer reached 0 - showing results');
       dispatch(setShowResults(true));
     }
   }, [timeRemaining, currentPoll, dispatch]);
@@ -53,13 +75,14 @@ const StudentInterface: React.FC = () => {
     dispatch(setStudentName(name));
     sessionStorage.setItem('studentName', name);
     setHasJoined(true);
+    setIsKickedOut(false);
     emit('joinAsStudent', { name });
   };
 
   const handleAnswerSubmit = (option: string) => {
+    console.log('Answer submitted:', option);
     emit('submitVote', { studentName, option });
     setHasAnswered(true);
-    // Don't automatically show results - wait for poll to end or all answers
   };
 
   const handleLeavePoll = () => {
@@ -69,8 +92,21 @@ const StudentInterface: React.FC = () => {
       dispatch(leavePoll());
       setHasJoined(false);
       setHasAnswered(false);
+      setIsKickedOut(false);
     }
   };
+
+  const handleReturnHome = () => {
+    sessionStorage.removeItem('studentName');
+    dispatch(leavePoll());
+    setHasJoined(false);
+    setHasAnswered(false);
+    setIsKickedOut(false);
+  };
+
+  if (isKickedOut) {
+    return <KickedOut onReturnHome={handleReturnHome} />;
+  }
 
   if (!hasJoined) {
     return <StudentJoin onJoin={handleJoin} />;
@@ -78,7 +114,7 @@ const StudentInterface: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-      {/* Background decoration with better contrast */}
+      {/* Background decoration */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-10 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500 rounded-full blur-3xl"></div>
@@ -87,7 +123,7 @@ const StudentInterface: React.FC = () => {
 
       <div className="relative z-10 p-6">
         <div className="max-w-4xl mx-auto">
-          {/* Header with better contrast */}
+          {/* Header */}
           <div className="flex justify-between items-center mb-8 bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 border border-gray-600 shadow-2xl">
             <div className="flex items-center space-x-4">
               <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
@@ -107,9 +143,9 @@ const StudentInterface: React.FC = () => {
                 {students.length} Students
               </Badge>
               {currentPoll && (
-                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-600/90 animate-pulse' : 'bg-red-600/90'} text-white border-orange-500 backdrop-blur-sm font-semibold`}>
-                  <Clock className="w-4 h-4 mr-1" />
-                  {currentPoll.isActive ? `${timeRemaining}s left` : 'Time Up!'}
+                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-600/90 animate-pulse' : 'bg-red-600/90'} text-white border-orange-500 backdrop-blur-sm font-semibold text-xl px-4 py-2`}>
+                  <Timer className="w-5 h-5 mr-2" />
+                  {currentPoll.isActive ? `${timeRemaining}` : 'Time Up!'}
                 </Badge>
               )}
               <Button
@@ -163,7 +199,7 @@ const StudentInterface: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              {hasAnswered && (
+              {hasAnswered && !showResults && currentPoll.isActive && (
                 <Card className="bg-green-800/90 backdrop-blur-lg border-green-600 shadow-2xl">
                   <CardContent className="text-center py-8">
                     <div className="flex items-center justify-center mb-4">
@@ -175,14 +211,12 @@ const StudentInterface: React.FC = () => {
                     </div>
                     <h2 className="text-2xl font-bold text-gray-100 mb-2">🎉 Answer Submitted!</h2>
                     <p className="text-gray-300 text-lg font-medium">
-                      {showResults || !currentPoll.isActive 
-                        ? "Check out the results below!" 
-                        : "Waiting for other students or timer to complete..."}
+                      Waiting for other students or timer to complete...
                     </p>
                   </CardContent>
                 </Card>
               )}
-              {(showResults || !currentPoll.isActive) && (
+              {(showResults || !currentPoll?.isActive) && (
                 <>
                   <div className="text-center mb-6">
                     <img 
