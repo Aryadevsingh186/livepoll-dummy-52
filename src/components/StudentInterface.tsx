@@ -5,6 +5,7 @@ import { RootState } from '../store';
 import { setStudentName, setShowResults, leavePoll } from '../store/pollSlice';
 import { useWebSocket } from '../hooks/useWebSocket';
 import StudentJoin from './StudentJoin';
+import StudentWelcome from './StudentWelcome';
 import PollQuestion from './PollQuestion';
 import PollResults from './PollResults';
 import ChatPanel from './ChatPanel';
@@ -20,6 +21,7 @@ const StudentInterface: React.FC = () => {
   const [isKickedOut, setIsKickedOut] = useState(false);
   const [isWaitingApproval, setIsWaitingApproval] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
     const savedName = sessionStorage.getItem('studentName');
@@ -74,6 +76,7 @@ const StudentInterface: React.FC = () => {
     if (data.name === studentName) {
       setIsWaitingApproval(false);
       setIsApproved(true);
+      setShowWelcome(true);
     }
   });
 
@@ -108,6 +111,11 @@ const StudentInterface: React.FC = () => {
     setIsKickedOut(false);
     setIsWaitingApproval(false);
     setIsApproved(false);
+    setShowWelcome(false);
+  };
+
+  const handleWelcomeContinue = () => {
+    setShowWelcome(false);
   };
 
   if (isKickedOut) {
@@ -132,6 +140,10 @@ const StudentInterface: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  if (showWelcome) {
+    return <StudentWelcome studentName={studentName} onContinue={handleWelcomeContinue} />;
   }
 
   return (

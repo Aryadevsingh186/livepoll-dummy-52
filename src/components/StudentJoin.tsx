@@ -62,7 +62,7 @@ const StudentJoin: React.FC<StudentJoinProps> = ({ onJoin }) => {
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Rahul Bajaj"
+                  placeholder=""
                   className="w-full max-w-md mx-auto text-center text-lg py-3 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                   autoFocus
                 />
