@@ -1,10 +1,16 @@
 
 import { store } from '../store';
-import { addStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent } from '../store/pollSlice';
+import { addStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults } from '../store/pollSlice';
 
 class WebSocketService {
   private listeners: { [event: string]: Function[] } = {};
   private pollTimer: NodeJS.Timeout | null = null;
+
+  constructor() {
+    // Listen for storage events to sync across tabs
+    window.addEventListener('storage', this.handleStorageChange.bind(this));
+    this.syncFromStorage();
+  }
 
   emit(event: string, data: any) {
     console.log(`Emitting ${event}:`, data);
@@ -13,20 +19,26 @@ class WebSocketService {
       case 'joinAsStudent':
         store.dispatch(addStudent(data.name));
         this.broadcast('studentJoined', { name: data.name });
+        this.saveToStorage('students', store.getState().poll.students);
         break;
       case 'createPoll':
         store.dispatch(createPoll(data));
+        store.dispatch(setShowResults(false));
         this.broadcast('newPoll', data);
+        this.saveToStorage('currentPoll', data);
+        this.saveToStorage('pollActive', true);
         this.startPollTimer(data.maxTime);
         break;
       case 'submitVote':
         store.dispatch(submitVote(data));
         this.broadcast('voteSubmitted', data);
+        this.saveToStorage('pollVotes', store.getState().poll.currentPoll?.votes);
         this.checkIfAllAnswered();
         break;
       case 'removeStudent':
         store.dispatch(removeStudent(data.studentName));
         this.broadcast('studentRemoved', { name: data.studentName });
+        this.saveToStorage('students', store.getState().poll.students);
         break;
     }
   }
@@ -48,6 +60,60 @@ class WebSocketService {
     if (this.listeners[event]) {
       this.listeners[event].forEach(callback => callback(data));
     }
+    // Also save to localStorage for cross-tab communication
+    this.saveToStorage(`event_${event}`, { data, timestamp: Date.now() });
+  }
+
+  private saveToStorage(key: string, data: any) {
+    try {
+      localStorage.setItem(`poll_${key}`, JSON.stringify(data));
+    } catch (error) {
+      console.error('Failed to save to storage:', error);
+    }
+  }
+
+  private getFromStorage(key: string) {
+    try {
+      const item = localStorage.getItem(`poll_${key}`);
+      return item ? JSON.parse(item) : null;
+    } catch (error) {
+      console.error('Failed to get from storage:', error);
+      return null;
+    }
+  }
+
+  private handleStorageChange(event: StorageEvent) {
+    if (!event.key?.startsWith('poll_')) return;
+
+    const key = event.key.replace('poll_', '');
+    
+    if (key.startsWith('event_')) {
+      const eventType = key.replace('event_', '');
+      const eventData = event.newValue ? JSON.parse(event.newValue) : null;
+      
+      if (eventData && this.listeners[eventType]) {
+        this.listeners[eventType].forEach(callback => callback(eventData.data));
+      }
+    } else {
+      // Handle data changes
+      this.syncFromStorage();
+    }
+  }
+
+  private syncFromStorage() {
+    const students = this.getFromStorage('students');
+    const currentPoll = this.getFromStorage('currentPoll');
+    const pollActive = this.getFromStorage('pollActive');
+
+    if (students) {
+      students.forEach((student: any) => {
+        store.dispatch(addStudent(student.name));
+      });
+    }
+
+    if (currentPoll && pollActive) {
+      store.dispatch(createPoll(currentPoll));
+    }
   }
 
   private startPollTimer(maxTime: number) {
@@ -56,9 +122,12 @@ class WebSocketService {
     }
 
     let timeLeft = maxTime;
+    this.saveToStorage('timeRemaining', timeLeft);
+    
     this.pollTimer = setInterval(() => {
       timeLeft -= 1;
       store.dispatch(setTimeRemaining(timeLeft));
+      this.saveToStorage('timeRemaining', timeLeft);
       this.broadcast('timeUpdate', { timeRemaining: timeLeft });
 
       if (timeLeft <= 0) {
@@ -71,7 +140,7 @@ class WebSocketService {
     const state = store.getState().poll;
     const allAnswered = state.students.every(s => s.hasAnswered);
     if (allAnswered && state.students.length > 0) {
-      this.endPollTimer();
+      setTimeout(() => this.endPollTimer(), 1000); // Small delay to show final results
     }
   }
 
@@ -81,6 +150,8 @@ class WebSocketService {
       this.pollTimer = null;
     }
     store.dispatch(endPoll());
+    store.dispatch(setShowResults(true));
+    this.saveToStorage('pollActive', false);
     this.broadcast('pollEnded', {});
   }
 }

@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, TrendingUp, Users } from 'lucide-react';
 
 const PollResults: React.FC = () => {
   const { currentPoll, students } = useSelector((state: RootState) => state.poll);
@@ -15,43 +15,85 @@ const PollResults: React.FC = () => {
   const answeredStudents = students.filter(s => s.hasAnswered).length;
 
   return (
-    <Card className="bg-gray-800 border-gray-700">
+    <Card className="bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
       <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <BarChart3 className="w-5 h-5 mr-2" />
+        <CardTitle className="text-white flex items-center text-2xl">
+          <BarChart3 className="w-6 h-6 mr-3" />
           Live Results
+          <TrendingUp className="w-5 h-5 ml-2 text-green-400" />
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <div className="bg-gray-700 p-4 rounded-lg">
-            <h3 className="text-white font-semibold mb-2">{currentPoll.question}</h3>
-            <p className="text-sm text-gray-400">
-              {answeredStudents} of {students.length} students answered ({totalVotes} total votes)
-            </p>
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-slate-800/50 to-slate-700/50 p-6 rounded-xl border border-white/10">
+            <div className="flex items-center mb-4">
+              <img 
+                src="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=60&h=60&fit=crop"
+                alt="Poll data" 
+                className="w-12 h-12 rounded-lg object-cover border-2 border-white/20 mr-4"
+              />
+              <div>
+                <h3 className="text-white font-bold text-xl mb-2">{currentPoll.question}</h3>
+                <p className="text-blue-300 flex items-center">
+                  <Users className="w-4 h-4 mr-1" />
+                  {answeredStudents} of {students.length} students responded ({totalVotes} total votes)
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            {currentPoll.options.map((option) => {
+          <div className="space-y-6">
+            {currentPoll.options.map((option, index) => {
               const votes = currentPoll.votes[option] || 0;
               const percentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0;
+              const colors = ['from-blue-500 to-blue-600', 'from-green-500 to-green-600', 'from-purple-500 to-purple-600', 'from-orange-500 to-orange-600'];
+              const bgColor = colors[index % colors.length];
 
               return (
-                <div key={option} className="space-y-2">
+                <div key={option} className="space-y-3 bg-slate-800/30 p-4 rounded-xl border border-white/10">
                   <div className="flex justify-between items-center">
-                    <span className="text-white font-medium">{option}</span>
-                    <span className="text-gray-400">
-                      {votes} votes ({percentage.toFixed(1)}%)
-                    </span>
+                    <span className="text-white font-semibold text-lg">{option}</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-2xl font-bold text-white">
+                        {votes}
+                      </span>
+                      <span className="text-blue-300 font-medium">
+                        ({percentage.toFixed(1)}%)
+                      </span>
+                    </div>
                   </div>
-                  <Progress 
-                    value={percentage} 
-                    className="h-3 bg-gray-700"
-                  />
+                  <div className="relative">
+                    <Progress 
+                      value={percentage} 
+                      className="h-4 bg-slate-700 border border-white/10"
+                    />
+                    <div 
+                      className={`absolute top-0 left-0 h-4 bg-gradient-to-r ${bgColor} rounded-full transition-all duration-500 shadow-lg`}
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
+                  {votes > 0 && (
+                    <div className="flex justify-end">
+                      <span className="text-sm text-green-400 font-medium">
+                        🎯 {votes} vote{votes !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
+
+          {totalVotes === 0 && (
+            <div className="text-center py-8">
+              <img 
+                src="https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?w=100&h=100&fit=crop&crop=face"
+                alt="Waiting for responses" 
+                className="w-16 h-16 rounded-full mx-auto object-cover border-3 border-white/20 mb-4"
+              />
+              <p className="text-blue-300 text-lg">Waiting for student responses...</p>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
