@@ -1,3 +1,4 @@
+
 import { store } from '../store';
 import { addPendingStudent, approveStudent, rejectStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, removePoll } from '../store/pollSlice';
 
@@ -27,9 +28,16 @@ class WebSocketService {
     switch (event) {
       case 'requestJoin':
         console.log('Student requesting to join:', data.name);
-        store.dispatch(addPendingStudent(data.name));
-        this.broadcast('studentJoinRequest', { name: data.name });
-        this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
+        // Always add to pending, even if they joined before
+        const state = store.getState().poll;
+        const existingApproved = state.students.find(s => s.name === data.name);
+        const existingPending = state.pendingStudents.find(s => s.name === data.name);
+        
+        if (!existingApproved && !existingPending) {
+          store.dispatch(addPendingStudent(data.name));
+          this.broadcast('studentJoinRequest', { name: data.name });
+          this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
+        }
         break;
       case 'approveStudent':
         console.log('Approving student:', data.studentName);

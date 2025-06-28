@@ -33,6 +33,10 @@ const StudentInterface: React.FC = () => {
       if (student) {
         setIsApproved(true);
         setIsWaitingApproval(false);
+        // Show welcome if no current poll
+        if (!currentPoll) {
+          setShowWelcome(true);
+        }
       } else {
         // Check if waiting for approval
         const pending = pendingStudents.find(s => s.name === savedName);
@@ -46,10 +50,11 @@ const StudentInterface: React.FC = () => {
         }
       }
     }
-  }, [dispatch, emit, students, pendingStudents]);
+  }, [dispatch, emit, students, pendingStudents, currentPoll]);
 
   on('newPoll', () => {
     setHasAnswered(false);
+    setShowWelcome(false);
     dispatch(setShowResults(false));
   });
 
@@ -64,6 +69,10 @@ const StudentInterface: React.FC = () => {
   on('pollRemoved', () => {
     setHasAnswered(false);
     dispatch(setShowResults(false));
+    // Show welcome screen again after poll is removed
+    if (isApproved) {
+      setShowWelcome(true);
+    }
   });
 
   on('studentRemoved', (data: { name: string }) => {
@@ -143,7 +152,7 @@ const StudentInterface: React.FC = () => {
   }
 
   if (showWelcome) {
-    return <StudentWelcome studentName={studentName} onContinue={handleWelcomeContinue} />;
+    return <StudentWelcome studentName={studentName} onContinue={handleWelcomeContinue} showContinueButton={!!currentPoll} />;
   }
 
   return (
