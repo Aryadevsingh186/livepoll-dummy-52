@@ -40,31 +40,31 @@ const StudentJoin: React.FC<StudentJoinProps> = ({ onJoin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Card className="bg-gray-800 border-gray-700">
+        <Card className="bg-white border border-gray-200 shadow-lg">
           <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-4">
-              <UserPlus className="w-8 h-8 text-white" />
+            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <UserPlus className="w-8 h-8 text-blue-600" />
             </div>
-            <CardTitle className="text-2xl text-white">Join as Student</CardTitle>
+            <CardTitle className="text-2xl text-gray-800">Join as Student</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-white">Your Name</Label>
+                <Label htmlFor="name" className="text-gray-700">Your Name</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your name..."
-                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                  className="bg-white border-gray-300 text-gray-800 placeholder-gray-500"
                   autoFocus
                 />
               </div>
               
               {error && (
-                <div className="flex items-center space-x-2 text-red-400 text-sm">
+                <div className="flex items-center space-x-2 text-red-600 text-sm bg-red-50 p-2 rounded">
                   <AlertCircle className="w-4 h-4" />
                   <span>{error}</span>
                 </div>
@@ -72,14 +72,14 @@ const StudentJoin: React.FC<StudentJoinProps> = ({ onJoin }) => {
 
               <Button
                 type="submit"
-                className="w-full bg-green-600 hover:bg-green-500"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               >
                 Join Poll
               </Button>
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-gray-500">
                 Your name will be saved for this tab session
               </p>
             </div>

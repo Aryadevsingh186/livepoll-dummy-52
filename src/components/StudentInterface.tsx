@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
@@ -11,7 +10,7 @@ import KickedOut from './KickedOut';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Users, Zap, BookOpen, LogOut, Timer } from 'lucide-react';
+import { Clock, Users, BookOpen, LogOut, Timer } from 'lucide-react';
 
 const StudentInterface: React.FC = () => {
   const dispatch = useDispatch();
@@ -63,7 +62,6 @@ const StudentInterface: React.FC = () => {
     console.log('Time update received:', data.timeRemaining);
   });
 
-  // Show results when timer ends or all students answer
   useEffect(() => {
     if (timeRemaining === 0 && currentPoll) {
       console.log('Timer reached 0 - showing results');
@@ -113,121 +111,77 @@ const StudentInterface: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-500 rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="relative z-10 p-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="p-6">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8 bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 border border-gray-600 shadow-2xl">
+          <div className="flex justify-between items-center mb-8 bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                <BookOpen className="w-8 h-8 text-white" />
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <BookOpen className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-100 mb-1">Student Portal</h1>
-                <p className="text-gray-300 flex items-center font-medium">
-                  <Zap className="w-4 h-4 mr-1" />
-                  Welcome, {studentName}!
-                </p>
+                <h1 className="text-2xl font-bold text-gray-800 mb-1">Student Portal</h1>
+                <p className="text-gray-600">Welcome, {studentName}!</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="secondary" className="bg-green-600/90 text-white border-green-500 backdrop-blur-sm font-semibold">
+            <div className="flex items-center space-x-3">
+              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200 font-medium">
                 <Users className="w-4 h-4 mr-1" />
                 {students.length} Students
               </Badge>
               {currentPoll && (
-                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-600/90 animate-pulse' : 'bg-red-600/90'} text-white border-orange-500 backdrop-blur-sm font-semibold text-xl px-4 py-2`}>
-                  <Timer className="w-5 h-5 mr-2" />
-                  {currentPoll.isActive ? `${timeRemaining}` : 'Time Up!'}
+                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-red-100 text-red-800 border-red-200'} font-medium`}>
+                  <Timer className="w-4 h-4 mr-1" />
+                  {currentPoll.isActive ? `${timeRemaining}s` : 'Time Up!'}
                 </Badge>
               )}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleLeavePoll}
-                className="bg-red-600/90 text-white border-red-500 hover:bg-red-700/90"
+                className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                Leave Poll
+                <LogOut className="w-4 h-4 mr-1" />
+                Leave
               </Button>
             </div>
           </div>
 
           {!currentPoll ? (
-            <Card className="bg-gray-800/90 backdrop-blur-lg border-gray-600 shadow-2xl">
+            <Card className="bg-white border border-gray-200 shadow-sm">
               <CardContent className="text-center py-20">
                 <div className="space-y-6">
-                  <div className="relative">
-                    <img 
-                      src="https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?w=200&h=200&fit=crop&crop=face"
-                      alt="Student waiting" 
-                      className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-gray-500"
-                    />
-                    <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                      <Clock className="w-4 h-4 text-white" />
-                    </div>
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                    <Clock className="w-8 h-8 text-blue-600" />
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-100">Waiting for Poll</h2>
-                  <p className="text-gray-300 text-lg font-medium">Your teacher is preparing an awesome poll. Get ready to participate!</p>
-                  <div className="flex justify-center">
-                    <div className="animate-bounce">
-                      <div className="w-3 h-3 bg-blue-400 rounded-full mr-1 inline-block"></div>
-                      <div className="w-3 h-3 bg-purple-400 rounded-full mr-1 inline-block animate-pulse"></div>
-                      <div className="w-3 h-3 bg-indigo-400 rounded-full inline-block"></div>
-                    </div>
+                  <h2 className="text-2xl font-bold text-gray-800">Waiting for Poll</h2>
+                  <p className="text-gray-600 text-lg">Your teacher is preparing an awesome poll. Get ready to participate!</p>
+                  <div className="flex justify-center space-x-1">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           ) : currentPoll.isActive && !hasAnswered && !showResults ? (
-            <div className="space-y-6">
-              <div className="text-center mb-6">
-                <img 
-                  src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=300&h=200&fit=crop"
-                  alt="Students collaborating" 
-                  className="w-full max-w-md h-48 mx-auto rounded-2xl object-cover border-4 border-gray-500 shadow-2xl"
-                />
-              </div>
-              <PollQuestion poll={currentPoll} onSubmit={handleAnswerSubmit} />
-            </div>
+            <PollQuestion poll={currentPoll} onSubmit={handleAnswerSubmit} />
           ) : (
             <div className="space-y-6">
               {hasAnswered && !showResults && currentPoll.isActive && (
-                <Card className="bg-green-800/90 backdrop-blur-lg border-green-600 shadow-2xl">
+                <Card className="bg-green-50 border border-green-200 shadow-sm">
                   <CardContent className="text-center py-8">
-                    <div className="flex items-center justify-center mb-4">
-                      <img 
-                        src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=100&h=100&fit=crop&crop=face"
-                        alt="Success" 
-                        className="w-16 h-16 rounded-full object-cover border-3 border-green-400"
-                      />
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-green-600 text-xl">✓</span>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-100 mb-2">🎉 Answer Submitted!</h2>
-                    <p className="text-gray-300 text-lg font-medium">
+                    <h2 className="text-xl font-bold text-gray-800 mb-2">Answer Submitted!</h2>
+                    <p className="text-gray-600">
                       Waiting for other students or timer to complete...
                     </p>
                   </CardContent>
                 </Card>
               )}
-              {(showResults || !currentPoll?.isActive) && (
-                <>
-                  <div className="text-center mb-6">
-                    <img 
-                      src="https://images.unsplash.com/photo-1605810230434-7631ac76ec81?w=400&h=200&fit=crop"
-                      alt="Data visualization" 
-                      className="w-full max-w-lg h-48 mx-auto rounded-2xl object-cover border-4 border-gray-500 shadow-2xl"
-                    />
-                  </div>
-                  <PollResults />
-                </>
-              )}
+              {(showResults || !currentPoll?.isActive) && <PollResults />}
             </div>
           )}
         </div>

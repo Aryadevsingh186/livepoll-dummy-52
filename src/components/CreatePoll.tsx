@@ -53,41 +53,42 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
   };
 
   return (
-    <Card className="bg-gray-800 border-gray-700">
+    <Card className="bg-white border border-gray-200 shadow-sm">
       <CardHeader>
-        <CardTitle className="text-white">Create New Poll</CardTitle>
+        <CardTitle className="text-gray-800 text-xl">Create New Poll</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="question" className="text-white">Question</Label>
+            <Label htmlFor="question" className="text-gray-700">Question</Label>
             <Input
               id="question"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Enter your poll question..."
-              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+              className="bg-white border-gray-300 text-gray-800 placeholder-gray-500"
               required
             />
           </div>
 
           <div className="space-y-4">
-            <Label className="text-white">Options</Label>
+            <Label className="text-gray-700">Options</Label>
             {options.map((option, index) => (
               <div key={index} className="flex items-center space-x-2">
                 <Input
                   value={option}
                   onChange={(e) => updateOption(index, e.target.value)}
                   placeholder={`Option ${index + 1}`}
-                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                  className="bg-white border-gray-300 text-gray-800 placeholder-gray-500"
                   required
                 />
                 {options.length > 2 && (
                   <Button
                     type="button"
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
                     onClick={() => removeOption(index)}
+                    className="border-red-300 text-red-600 hover:bg-red-50"
                   >
                     <Minus className="w-4 h-4" />
                   </Button>
@@ -99,7 +100,7 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
                 type="button"
                 variant="outline"
                 onClick={addOption}
-                className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Option
@@ -108,8 +109,8 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-white flex items-center">
-              <Clock className="w-4 h-4 mr-2" />
+            <Label className="text-gray-700 flex items-center">
+              <Clock className="w-4 h-4 mr-2 text-blue-600" />
               Time Limit: {maxTime[0]} seconds
             </Label>
             <Slider
@@ -120,7 +121,7 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
               step={10}
               className="w-full"
             />
-            <div className="flex justify-between text-sm text-gray-400">
+            <div className="flex justify-between text-sm text-gray-500">
               <span>30s</span>
               <span>300s</span>
             </div>
@@ -131,13 +132,13 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
               type="button"
               variant="outline"
               onClick={onClose}
-              className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-500"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
             >
               Create Poll
             </Button>
