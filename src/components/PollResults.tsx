@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, TrendingUp, Users } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Clock } from 'lucide-react';
 
 const PollResults: React.FC = () => {
   const { currentPoll, students } = useSelector((state: RootState) => state.poll);
