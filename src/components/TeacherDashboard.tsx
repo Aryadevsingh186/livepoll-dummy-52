@@ -1,148 +1,119 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { useWebSocket } from '../hooks/useWebSocket';
 import CreatePoll from './CreatePoll';
 import PollResults from './PollResults';
-import StudentList from './StudentList';
+import ParticipantsPanel from './ParticipantsPanel';
+import ChatPanel from './ChatPanel';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Clock, Users, BarChart3, Plus, GraduationCap, Trash2 } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 const TeacherDashboard: React.FC = () => {
-  const { currentPoll, students, timeRemaining, showResults } = useSelector((state: RootState) => state.poll);
+  const { currentPoll, timeRemaining } = useSelector((state: RootState) => state.poll);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
+  const [activeTab, setActiveTab] = useState<'chat' | 'participants'>('chat');
   const { emit } = useWebSocket();
 
-  const canCreateNewPoll = !currentPoll || !currentPoll.isActive;
-
-  useEffect(() => {
-    if (timeRemaining === 0 && currentPoll?.isActive) {
-      setShowCreatePoll(false);
-    }
-  }, [timeRemaining, currentPoll]);
-
-  const handleCreatePoll = () => {
+  const handleCreateNewQuestion = () => {
     setShowCreatePoll(true);
   };
 
   const handleRemovePoll = () => {
-    if (window.confirm('Are you sure you want to remove this poll? This action cannot be undone.')) {
+    if (window.confirm('Are you sure you want to remove this poll?')) {
       emit('removePoll', {});
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-8 bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
-                <GraduationCap className="w-8 h-8 text-blue-600" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800 mb-1">Teacher Dashboard</h1>
-                <p className="text-gray-600">Create engaging polls and track student participation</p>
+    <div className="min-h-screen bg-gray-100">
+      <div className="flex h-screen">
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
+          {!currentPoll ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-flex items-center bg-purple-600 text-white px-4 py-2 rounded-full mb-8">
+                  <span className="mr-2">⭐</span>
+                  <span className="font-medium">Intervue Poll</span>
+                </div>
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">Let's Get Started</h1>
+                <p className="text-lg text-gray-600 mb-8">
+                  You'll have the ability to create and manage polls, ask questions, and monitor
+                  <br />
+                  your students' responses in real-time.
+                </p>
+                
+                {showCreatePoll ? (
+                  <CreatePoll onClose={() => setShowCreatePoll(false)} />
+                ) : (
+                  <Button
+                    onClick={handleCreateNewQuestion}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg rounded-full"
+                  >
+                    Ask Question
+                  </Button>
+                )}
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200 font-medium">
-                <Users className="w-4 h-4 mr-1" />
-                {students.length} Students
-              </Badge>
-              {currentPoll && (
-                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-red-100 text-red-800 border-red-200'} font-medium`}>
-                  <Clock className="w-4 h-4 mr-1" />
-                  {currentPoll.isActive ? `${timeRemaining}s` : 'Poll Ended'}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {showCreatePoll ? (
-                <CreatePoll onClose={() => setShowCreatePoll(false)} />
-              ) : (
-                <Card className="bg-white border border-gray-200 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-gray-800 flex items-center text-xl font-semibold">
-                      <BarChart3 className="w-5 h-5 mr-2" />
-                      Poll Management
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {currentPoll ? (
-                      <div className="space-y-4">
-                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h3 className="text-gray-800 font-semibold text-lg mb-1">Current Poll</h3>
-                              <p className="text-gray-600">{currentPoll.question}</p>
-                            </div>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={handleRemovePoll}
-                              className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
-                            >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Remove
-                            </Button>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <Badge variant={currentPoll.isActive ? "default" : "secondary"} className={currentPoll.isActive ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-600"}>
-                              {currentPoll.isActive ? "🟢 Active" : "🔴 Ended"}
-                            </Badge>
-                            <span className="text-gray-600 font-medium">
-                              {students.filter(s => s.hasAnswered).length}/{students.length} responses
-                            </span>
-                            {currentPoll && (
-                              <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-600'} border-gray-200`}>
-                                <Clock className="w-4 h-4 mr-1" />
-                                {currentPoll.isActive ? `${timeRemaining}s` : 'Finished'}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        {canCreateNewPoll && (
-                          <Button 
-                            onClick={handleCreatePoll} 
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3"
-                          >
-                            <Plus className="w-5 h-5 mr-2" />
-                            Create New Poll
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <BarChart3 className="w-8 h-8 text-blue-600" />
-                        </div>
-                        <p className="text-gray-600 mb-6 text-lg">Ready to engage your students?</p>
-                        <Button 
-                          onClick={handleCreatePoll} 
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6"
-                        >
-                          <Plus className="w-5 h-5 mr-2" />
-                          Create Your First Poll
-                        </Button>
+          ) : (
+            <div className="flex-1 p-6">
+              <div className="bg-white rounded-lg shadow-sm p-6 h-full">
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center space-x-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Question</h2>
+                    {currentPoll.isActive && (
+                      <div className="flex items-center text-red-600 font-medium">
+                        <Clock className="w-4 h-4 mr-1" />
+                        {Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:
+                        {(timeRemaining % 60).toString().padStart(2, '0')}
                       </div>
                     )}
-                  </CardContent>
-                </Card>
-              )}
-
-              {currentPoll && (students.some(s => s.hasAnswered) || !currentPoll.isActive) && <PollResults />}
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={handleCreateNewQuestion}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full"
+                    >
+                      + Ask a new question
+                    </Button>
+                  </div>
+                </div>
+                
+                <PollResults />
+              </div>
             </div>
+          )}
+        </div>
 
-            <div>
-              <StudentList />
-            </div>
+        {/* Right Sidebar */}
+        <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`flex-1 px-4 py-3 text-center font-medium ${
+                activeTab === 'chat' 
+                  ? 'text-purple-600 border-b-2 border-purple-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Chat
+            </button>
+            <button
+              onClick={() => setActiveTab('participants')}
+              className={`flex-1 px-4 py-3 text-center font-medium ${
+                activeTab === 'participants' 
+                  ? 'text-purple-600 border-b-2 border-purple-600' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Participants
+            </button>
+          </div>
+          
+          <div className="flex-1">
+            {activeTab === 'chat' ? <ChatPanel /> : <ParticipantsPanel />}
           </div>
         </div>
       </div>

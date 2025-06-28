@@ -2,10 +2,8 @@
 import React, { useState } from 'react';
 import { Poll } from '../store/pollSlice';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { HelpCircle } from 'lucide-react';
 
 interface PollQuestionProps {
   poll: Poll;
@@ -23,45 +21,47 @@ const PollQuestion: React.FC<PollQuestionProps> = ({ poll, onSubmit }) => {
   };
 
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-gray-800 flex items-center text-xl">
-          <HelpCircle className="w-5 h-5 mr-2 text-blue-600" />
-          Answer the Question
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">{poll.question}</h2>
-            
-            <RadioGroup value={selectedOption} onValueChange={setSelectedOption}>
-              <div className="space-y-3">
-                {poll.options.map((option, index) => (
-                  <div key={option} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
-                    <RadioGroupItem value={option} id={`option-${index}`} className="text-blue-600" />
-                    <Label 
-                      htmlFor={`option-${index}`} 
-                      className="text-gray-800 cursor-pointer flex-1 font-medium"
-                    >
-                      {option}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </RadioGroup>
-          </div>
+    <div className="max-w-4xl mx-auto">
+      {/* Question Header */}
+      <div className="bg-gray-800 text-white p-6 rounded-lg mb-8">
+        <h2 className="text-xl font-medium">{poll.question}</h2>
+      </div>
 
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <RadioGroup value={selectedOption} onValueChange={setSelectedOption}>
+          <div className="space-y-4">
+            {poll.options.map((option, index) => (
+              <div 
+                key={option} 
+                className="flex items-center space-x-4 p-4 bg-purple-100 hover:bg-purple-200 rounded-lg border-2 border-purple-200 hover:border-purple-300 transition-colors cursor-pointer"
+                onClick={() => setSelectedOption(option)}
+              >
+                <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-medium">
+                  {index + 1}
+                </div>
+                <RadioGroupItem value={option} id={`option-${index}`} className="text-purple-600" />
+                <Label 
+                  htmlFor={`option-${index}`} 
+                  className="text-gray-900 cursor-pointer flex-1 font-medium text-lg"
+                >
+                  {option}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </RadioGroup>
+
+        <div className="text-center mt-8">
           <Button
             type="submit"
             disabled={!selectedOption}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3"
+            className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium px-12 py-3 text-lg rounded-full"
           >
-            Submit Answer
+            Submit
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </form>
+    </div>
   );
 };
 

@@ -4,9 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { UserPlus, AlertCircle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface StudentJoinProps {
   onJoin: (name: string) => void;
@@ -40,49 +38,51 @@ const StudentJoin: React.FC<StudentJoinProps> = ({ onJoin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="bg-white border border-gray-200 shadow-lg">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <UserPlus className="w-8 h-8 text-blue-600" />
-            </div>
-            <CardTitle className="text-2xl text-gray-800">Join as Student</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-gray-700">Your Name</Label>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center bg-purple-600 text-white px-4 py-2 rounded-full mb-8">
+            <span className="mr-2">⭐</span>
+            <span className="font-medium">Intervue Poll</span>
+          </div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Let's Get Started</h1>
+          <p className="text-lg text-gray-600 mb-2">
+            If you're a student, you'll be able to <strong>submit your answers</strong>, participate in live
+          </p>
+          <p className="text-lg text-gray-600">
+            polls, and see how your responses compare with your classmates
+          </p>
+        </div>
+
+        <Card className="bg-white border border-gray-200 shadow-sm">
+          <CardContent className="p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-6">Enter your Name</h2>
                 <Input
-                  id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your name..."
-                  className="bg-white border-gray-300 text-gray-800 placeholder-gray-500"
+                  placeholder="Rahul Bajaj"
+                  className="w-full max-w-md mx-auto text-center text-lg py-3 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                   autoFocus
                 />
               </div>
               
               {error && (
-                <div className="flex items-center space-x-2 text-red-600 text-sm bg-red-50 p-2 rounded">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>{error}</span>
+                <div className="text-center text-red-600 text-sm">
+                  {error}
                 </div>
               )}
 
-              <Button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Join Poll
-              </Button>
+              <div className="text-center">
+                <Button
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-12 py-3 text-lg rounded-full"
+                >
+                  Continue
+                </Button>
+              </div>
             </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-500">
-                Your name will be saved for this tab session
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>

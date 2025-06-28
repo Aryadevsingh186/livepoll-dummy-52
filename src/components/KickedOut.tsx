@@ -10,7 +10,7 @@ interface KickedOutProps {
 
 const KickedOut: React.FC<KickedOutProps> = ({ onReturnHome }) => {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
       <Card className="bg-white border border-gray-200 shadow-lg max-w-md mx-auto">
         <CardContent className="text-center py-12 px-8">
           <div className="space-y-6">
@@ -25,7 +25,7 @@ const KickedOut: React.FC<KickedOutProps> = ({ onReturnHome }) => {
             </div>
             <Button 
               onClick={onReturnHome}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6"
+              className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6"
             >
               <Home className="w-5 h-5 mr-2" />
               Return to Home

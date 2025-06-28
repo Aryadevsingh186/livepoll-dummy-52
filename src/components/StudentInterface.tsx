@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
@@ -6,19 +7,18 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import StudentJoin from './StudentJoin';
 import PollQuestion from './PollQuestion';
 import PollResults from './PollResults';
+import ChatPanel from './ChatPanel';
 import KickedOut from './KickedOut';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Clock, Users, BookOpen, LogOut, Timer } from 'lucide-react';
+import { Clock } from 'lucide-react';
 
 const StudentInterface: React.FC = () => {
   const dispatch = useDispatch();
-  const { currentPoll, studentName, timeRemaining, showResults, students } = useSelector((state: RootState) => state.poll);
+  const { currentPoll, studentName, timeRemaining, showResults } = useSelector((state: RootState) => state.poll);
   const { emit, on } = useWebSocket();
   const [hasJoined, setHasJoined] = useState(false);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [isKickedOut, setIsKickedOut] = useState(false);
+  const [activeTab, setActiveTab] = useState<'question' | 'chat'>('question');
 
   useEffect(() => {
     const savedName = sessionStorage.getItem('studentName');
@@ -30,44 +30,28 @@ const StudentInterface: React.FC = () => {
   }, [dispatch, emit]);
 
   on('newPoll', () => {
-    console.log('New poll started - resetting state');
     setHasAnswered(false);
     dispatch(setShowResults(false));
   });
 
   on('pollEnded', () => {
-    console.log('Poll ended - showing results');
     dispatch(setShowResults(true));
   });
 
   on('showResults', () => {
-    console.log('Show results event received');
     dispatch(setShowResults(true));
   });
 
   on('pollRemoved', () => {
-    console.log('Poll removed - resetting state');
     setHasAnswered(false);
     dispatch(setShowResults(false));
   });
 
   on('studentRemoved', (data: { name: string }) => {
     if (data.name === studentName) {
-      console.log('Student was kicked out');
       setIsKickedOut(true);
     }
   });
-
-  on('timeUpdate', (data: { timeRemaining: number }) => {
-    console.log('Time update received:', data.timeRemaining);
-  });
-
-  useEffect(() => {
-    if (timeRemaining === 0 && currentPoll) {
-      console.log('Timer reached 0 - showing results');
-      dispatch(setShowResults(true));
-    }
-  }, [timeRemaining, currentPoll, dispatch]);
 
   const handleJoin = (name: string) => {
     dispatch(setStudentName(name));
@@ -78,20 +62,8 @@ const StudentInterface: React.FC = () => {
   };
 
   const handleAnswerSubmit = (option: string) => {
-    console.log('Answer submitted:', option);
     emit('submitVote', { studentName, option });
     setHasAnswered(true);
-  };
-
-  const handleLeavePoll = () => {
-    if (window.confirm('Are you sure you want to leave the poll?')) {
-      sessionStorage.removeItem('studentName');
-      emit('removeStudent', { studentName });
-      dispatch(leavePoll());
-      setHasJoined(false);
-      setHasAnswered(false);
-      setIsKickedOut(false);
-    }
   };
 
   const handleReturnHome = () => {
@@ -111,79 +83,56 @@ const StudentInterface: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-8 bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-1">Student Portal</h1>
-                <p className="text-gray-600">Welcome, {studentName}!</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200 font-medium">
-                <Users className="w-4 h-4 mr-1" />
-                {students.length} Students
-              </Badge>
-              {currentPoll && (
-                <Badge variant="secondary" className={`${currentPoll.isActive ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-red-100 text-red-800 border-red-200'} font-medium`}>
-                  <Timer className="w-4 h-4 mr-1" />
-                  {currentPoll.isActive ? `${timeRemaining}s` : 'Time Up!'}
-                </Badge>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLeavePoll}
-                className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
-              >
-                <LogOut className="w-4 h-4 mr-1" />
-                Leave
-              </Button>
-            </div>
-          </div>
-
+    <div className="min-h-screen bg-gray-100">
+      <div className="flex h-screen">
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
           {!currentPoll ? (
-            <Card className="bg-white border border-gray-200 shadow-sm">
-              <CardContent className="text-center py-20">
-                <div className="space-y-6">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-                    <Clock className="w-8 h-8 text-blue-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-800">Waiting for Poll</h2>
-                  <p className="text-gray-600 text-lg">Your teacher is preparing an awesome poll. Get ready to participate!</p>
-                  <div className="flex justify-center space-x-1">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="inline-flex items-center bg-purple-600 text-white px-4 py-2 rounded-full mb-8">
+                  <span className="mr-2">⭐</span>
+                  <span className="font-medium">Intervue Poll</span>
+                </div>
+                <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-8"></div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">Wait for the teacher to ask questions..</h1>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 p-6">
+              <div className="bg-white rounded-lg shadow-sm h-full">
+                {/* Header */}
+                <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                  <div className="flex items-center space-x-4">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Question {currentPoll ? '1' : ''}
+                    </h2>
+                    {currentPoll?.isActive && timeRemaining > 0 && (
+                      <div className="flex items-center text-red-600 font-medium">
+                        <Clock className="w-4 h-4 mr-1" />
+                        {Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:
+                        {(timeRemaining % 60).toString().padStart(2, '0')}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ) : currentPoll.isActive && !hasAnswered && !showResults ? (
-            <PollQuestion poll={currentPoll} onSubmit={handleAnswerSubmit} />
-          ) : (
-            <div className="space-y-6">
-              {hasAnswered && !showResults && currentPoll.isActive && (
-                <Card className="bg-green-50 border border-green-200 shadow-sm">
-                  <CardContent className="text-center py-8">
-                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-green-600 text-xl">✓</span>
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-800 mb-2">Answer Submitted!</h2>
-                    <p className="text-gray-600">
-                      Waiting for other students or timer to complete...
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-              {(showResults || !currentPoll?.isActive) && <PollResults />}
+
+                {/* Content */}
+                <div className="p-6 h-full">
+                  {currentPoll.isActive && !hasAnswered && !showResults ? (
+                    <PollQuestion poll={currentPoll} onSubmit={handleAnswerSubmit} />
+                  ) : (
+                    <PollResults />
+                  )}
+                </div>
+              </div>
             </div>
           )}
+        </div>
+
+        {/* Right Sidebar - Chat */}
+        <div className="w-80 bg-white border-l border-gray-200">
+          <ChatPanel />
         </div>
       </div>
     </div>
