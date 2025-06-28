@@ -122,22 +122,49 @@ const pollSlice = createSlice({
       state.timeRemaining = action.payload.maxTime;
       state.showResults = false;
     },
+    
     submitVote: (state, action: PayloadAction<{ studentName: string; option: string }>) => {
       if (state.currentPoll && state.currentPoll.isActive) {
         const student = state.students.find(s => s.name === action.payload.studentName);
         
+        // Only process if student exists and hasn't voted yet
         if (student && !student.hasAnswered) {
-          // Increment vote count for the selected option
+          console.log('Redux: Processing vote submission', {
+            student: action.payload.studentName,
+            option: action.payload.option,
+            currentVotes: state.currentPoll.votes
+          });
+          
+          // Increment vote count for the selected option (accumulate, don't replace)
           if (state.currentPoll.votes[action.payload.option] !== undefined) {
-            state.currentPoll.votes[action.payload.option] += 1;
+            const previousCount = state.currentPoll.votes[action.payload.option];
+            state.currentPoll.votes[action.payload.option] = previousCount + 1;
+            
+            console.log('Redux: Vote count updated', {
+              option: action.payload.option,
+              previousCount,
+              newCount: state.currentPoll.votes[action.payload.option]
+            });
           }
           
           // Mark student as voted
           student.hasAnswered = true;
           student.selectedOption = action.payload.option;
+          
+          console.log('Redux: Vote processed successfully', {
+            totalVotes: Object.values(state.currentPoll.votes).reduce((sum, count) => sum + count, 0),
+            allVotes: state.currentPoll.votes
+          });
+        } else {
+          console.log('Redux: Vote rejected', {
+            studentExists: !!student,
+            hasAnswered: student?.hasAnswered,
+            studentName: action.payload.studentName
+          });
         }
       }
     },
+    
     updatePollVotes: (state, action: PayloadAction<{ votes: { [option: string]: number } }>) => {
       if (state.currentPoll) {
         state.currentPoll.votes = action.payload.votes;

@@ -17,6 +17,7 @@ class WebSocketService {
   private isProcessingVote = false;
   private processedVotes = new Map<string, string>(); // Track student votes per poll
   private currentPollId: string | null = null;
+  private voteQueue: Array<{studentName: string; option: string}> = []; // Queue for processing votes sequentially
 
   constructor() {
     this.syncFromStorage();
@@ -44,7 +45,7 @@ class WebSocketService {
         break;
         
       case 'submitVote':
-        this.handleVoteSubmission(data);
+        this.queueVoteSubmission(data);
         break;
         
       case 'removeStudent':
@@ -90,8 +91,9 @@ class WebSocketService {
   private handleCreatePoll(data: any) {
     this.stopTimer();
     
-    // Clear all processed votes when creating new poll
+    // Clear all processed votes and vote queue when creating new poll
     this.processedVotes.clear();
+    this.voteQueue = [];
     this.currentPollId = Date.now().toString();
     
     store.dispatch(createPoll(data));
@@ -105,6 +107,32 @@ class WebSocketService {
     console.log('New poll created with ID:', this.currentPollId);
     this.broadcast('newPoll', newState.currentPoll);
     this.startTimer(data.maxTime);
+  }
+
+  private queueVoteSubmission(voteData: { studentName: string; option: string }) {
+    console.log('Queueing vote submission:', voteData);
+    this.voteQueue.push(voteData);
+    this.processVoteQueue();
+  }
+
+  private async processVoteQueue() {
+    if (this.isProcessingVote || this.voteQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingVote = true;
+
+    try {
+      while (this.voteQueue.length > 0) {
+        const voteData = this.voteQueue.shift()!;
+        await this.handleVoteSubmission(voteData);
+        
+        // Small delay between processing votes to prevent race conditions
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } finally {
+      this.isProcessingVote = false;
+    }
   }
 
   private async handleVoteSubmission(voteData: { studentName: string; option: string }) {
@@ -136,42 +164,38 @@ class WebSocketService {
       return;
     }
 
-    // Prevent concurrent vote processing
-    if (this.isProcessingVote) {
-      console.log('Vote rejected: Another vote is being processed');
-      return;
-    }
-
-    this.isProcessingVote = true;
-
     try {
-      // Mark this vote as processed immediately
+      // Mark this vote as processed immediately to prevent duplicates
       this.processedVotes.set(pollVoteKey, voteData.option);
       
       console.log(`Processing vote for ${voteData.studentName}: ${voteData.option}`);
+      console.log('Current vote state before:', currentState.currentPoll.votes);
 
-      // Submit the vote through Redux
+      // Submit the vote through Redux - this will increment the vote count and mark student as voted
       store.dispatch(submitVote(voteData));
       
-      // Small delay to ensure Redux state is updated
+      // Wait for Redux state to update
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      // Recalculate votes to ensure accuracy
-      this.recalculateAndSyncVotes();
+      // Get updated state and save to storage
+      const updatedState = store.getState().poll;
+      this.saveToStorage('currentPoll', updatedState.currentPoll);
+      this.saveToStorage('students', updatedState.students);
       
-      // Get final state after recalculation
-      const finalState = store.getState().poll;
+      console.log('Vote state after processing:', updatedState.currentPoll?.votes);
+      console.log(`Total votes now: ${Object.values(updatedState.currentPoll?.votes || {}).reduce((sum, count) => sum + count, 0)}`);
       
-      // Broadcast the updated vote information
+      // Broadcast the updated vote information immediately
       this.broadcast('voteUpdate', {
-        pollId: finalState.currentPoll?.id,
-        votes: finalState.currentPoll?.votes,
-        students: finalState.students
+        pollId: updatedState.currentPoll?.id,
+        votes: updatedState.currentPoll?.votes,
+        students: updatedState.students,
+        totalVotes: Object.values(updatedState.currentPoll?.votes || {}).reduce((sum, count) => sum + count, 0)
       });
       
       console.log('Vote processed successfully for:', voteData.studentName);
       
-      // Check if all students have voted (with small delay)
+      // Check if all students have voted
       setTimeout(() => {
         this.checkVotingCompletion();
       }, 200);
@@ -180,8 +204,7 @@ class WebSocketService {
       console.error('Error processing vote:', error);
       // Remove from processed votes if there was an error
       this.processedVotes.delete(pollVoteKey);
-    } finally {
-      this.isProcessingVote = false;
+      throw error;
     }
   }
 
@@ -205,6 +228,7 @@ class WebSocketService {
   private handleClearPoll() {
     this.stopTimer();
     this.processedVotes.clear();
+    this.voteQueue = [];
     this.currentPollId = null;
     
     store.dispatch(clearPoll());
@@ -237,6 +261,11 @@ class WebSocketService {
         state.students
       );
 
+      console.log('Recalculating votes:', {
+        stored: state.currentPoll.votes,
+        calculated: correctVoteCounts
+      });
+
       // Update Redux with correct vote counts
       store.dispatch(updatePollVotes({ votes: correctVoteCounts }));
       
@@ -245,7 +274,7 @@ class WebSocketService {
       this.saveToStorage('currentPoll', updatedState.currentPoll);
       this.saveToStorage('students', updatedState.students);
       
-      console.log('Vote counts recalculated:', correctVoteCounts);
+      console.log('Vote counts recalculated and synced:', correctVoteCounts);
     } catch (error) {
       console.error('Error recalculating votes:', error);
     }
