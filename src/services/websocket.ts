@@ -1,4 +1,3 @@
-
 import { store } from '../store';
 import { addPendingStudent, approveStudent, rejectStudent, submitVote, updatePollVotes, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, clearPoll } from '../store/pollSlice';
 import { calculateFromVoteCounts, recalculateVoteCounts, checkAllStudentsVoted, getStudentVotesArray } from '../utils/pollCalculations';
@@ -16,7 +15,8 @@ class WebSocketService {
   private pollTimer: NodeJS.Timeout | null = null;
   private chatMessages: ChatMessage[] = [];
   private isProcessingVote = false;
-  private processedVotes = new Set<string>(); // Track processed votes
+  private processedVotes = new Map<string, string>(); // Track student votes per poll
+  private currentPollId: string | null = null;
 
   constructor() {
     this.syncFromStorage();
@@ -90,8 +90,9 @@ class WebSocketService {
   private handleCreatePoll(data: any) {
     this.stopTimer();
     
-    // Clear processed votes when creating new poll
+    // Clear all processed votes when creating new poll
     this.processedVotes.clear();
+    this.currentPollId = Date.now().toString();
     
     store.dispatch(createPoll(data));
     
@@ -101,55 +102,59 @@ class WebSocketService {
     this.saveToStorage('timeRemaining', data.maxTime);
     this.saveToStorage('showResults', false);
     
+    console.log('New poll created with ID:', this.currentPollId);
     this.broadcast('newPoll', newState.currentPoll);
     this.startTimer(data.maxTime);
   }
 
   private async handleVoteSubmission(voteData: { studentName: string; option: string }) {
-    // Create unique vote identifier
-    const voteId = `${voteData.studentName}_${voteData.option}_${Date.now()}`;
+    const currentState = store.getState().poll;
     
-    // Check if this exact vote was already processed recently
-    if (this.processedVotes.has(`${voteData.studentName}_current_poll`)) {
-      console.log('Duplicate vote attempt blocked for:', voteData.studentName);
+    // Early validation - check if poll exists and is active
+    if (!currentState.currentPoll || !currentState.currentPoll.isActive) {
+      console.log('Vote rejected: Poll is not active');
       return;
     }
 
-    // Prevent race conditions
+    // Check if student exists and is approved
+    const student = currentState.students.find(s => s.name === voteData.studentName);
+    if (!student) {
+      console.log('Vote rejected: Student not found');
+      return;
+    }
+
+    // CRITICAL: Check if student has already voted for this poll
+    if (student.hasAnswered) {
+      console.log('Vote rejected: Student already voted for this poll');
+      return;
+    }
+
+    // Additional protection: Check our internal tracking
+    const pollVoteKey = `${this.currentPollId}_${voteData.studentName}`;
+    if (this.processedVotes.has(pollVoteKey)) {
+      console.log('Vote rejected: Duplicate vote detected in internal tracking');
+      return;
+    }
+
+    // Prevent concurrent vote processing
     if (this.isProcessingVote) {
-      console.log('Vote processing in progress, blocking duplicate request');
+      console.log('Vote rejected: Another vote is being processed');
       return;
     }
 
     this.isProcessingVote = true;
 
     try {
-      const currentState = store.getState().poll;
+      // Mark this vote as processed immediately
+      this.processedVotes.set(pollVoteKey, voteData.option);
       
-      if (!currentState.currentPoll || !currentState.currentPoll.isActive) {
-        console.log('Cannot submit vote: Poll is not active');
-        return;
-      }
-
-      const student = currentState.students.find(s => s.name === voteData.studentName);
-      if (!student) {
-        console.log('Cannot submit vote: Student not found');
-        return;
-      }
-
-      if (student.hasAnswered) {
-        console.log('Cannot submit vote: Student already voted');
-        return;
-      }
-
-      // Mark this vote as processed
-      this.processedVotes.add(`${voteData.studentName}_current_poll`);
+      console.log(`Processing vote for ${voteData.studentName}: ${voteData.option}`);
 
       // Submit the vote through Redux
       store.dispatch(submitVote(voteData));
       
       // Small delay to ensure Redux state is updated
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 50));
       
       // Recalculate votes to ensure accuracy
       this.recalculateAndSyncVotes();
@@ -169,29 +174,39 @@ class WebSocketService {
       // Check if all students have voted (with small delay)
       setTimeout(() => {
         this.checkVotingCompletion();
-      }, 100);
+      }, 200);
       
     } catch (error) {
       console.error('Error processing vote:', error);
       // Remove from processed votes if there was an error
-      this.processedVotes.delete(`${voteData.studentName}_current_poll`);
+      this.processedVotes.delete(pollVoteKey);
     } finally {
       this.isProcessingVote = false;
     }
   }
 
   private handleRemoveStudent(data: { studentName: string }) {
+    // Remove student's vote from tracking if they had voted
+    if (this.currentPollId) {
+      const pollVoteKey = `${this.currentPollId}_${data.studentName}`;
+      this.processedVotes.delete(pollVoteKey);
+    }
+    
     store.dispatch(removeStudent(data.studentName));
     this.broadcast('studentRemoved', { name: data.studentName });
     this.saveToStorage('students', store.getState().poll.students);
+    
     // Recalculate votes after removing student
     setTimeout(() => {
       this.recalculateAndSyncVotes();
-    }, 50);
+    }, 100);
   }
 
   private handleClearPoll() {
     this.stopTimer();
+    this.processedVotes.clear();
+    this.currentPollId = null;
+    
     store.dispatch(clearPoll());
     this.broadcast('pollCleared', {});
     this.clearPollStorage();
@@ -431,6 +446,7 @@ class WebSocketService {
       }
 
       if (currentPoll) {
+        this.currentPollId = currentPoll.id;
         store.dispatch(createPoll(currentPoll));
         // Update votes from storage
         if (currentPoll.votes) {
