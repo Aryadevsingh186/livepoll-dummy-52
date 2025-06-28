@@ -22,7 +22,7 @@ const PollResults: React.FC = () => {
       <div className="space-y-4 mb-8">
         {currentPoll.options.map((option, index) => {
           const votes = currentPoll.votes[option] || 0;
-          // Calculate percentage based on total students, not total votes
+          // Calculate percentage based on total students who joined, not just those who voted
           const percentage = totalStudents > 0 ? Math.round((votes / totalStudents) * 100) : 0;
           
           return (
@@ -54,10 +54,22 @@ const PollResults: React.FC = () => {
         })}
       </div>
 
-      {/* Wait Message */}
-      <div className="text-center">
-        <p className="text-gray-600 text-lg mb-6">Wait for the teacher to ask a new question..</p>
-      </div>
+      {/* Final Results Message */}
+      {!currentPoll.isActive && (
+        <div className="text-center bg-green-50 border border-green-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-green-800 mb-2">Poll Results</h3>
+          <p className="text-green-700">
+            Final results based on {totalVotes} votes from {totalStudents} students
+          </p>
+        </div>
+      )}
+
+      {/* Wait Message for Active Polls */}
+      {currentPoll.isActive && (
+        <div className="text-center">
+          <p className="text-gray-600 text-lg mb-6">Wait for the teacher to end the poll to see final results...</p>
+        </div>
+      )}
     </div>
   );
 };

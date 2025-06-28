@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
@@ -21,6 +22,7 @@ const StudentInterface: React.FC = () => {
   const [isWaitingApproval, setIsWaitingApproval] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [isKicked, setIsKicked] = useState(false);
 
   useEffect(() => {
     const savedName = sessionStorage.getItem('studentName');
@@ -32,6 +34,7 @@ const StudentInterface: React.FC = () => {
       if (student) {
         setIsApproved(true);
         setIsWaitingApproval(false);
+        setIsKicked(false);
         // Show welcome if no current poll
         if (!currentPoll) {
           setShowWelcome(true);
@@ -42,6 +45,7 @@ const StudentInterface: React.FC = () => {
         if (pending) {
           setIsWaitingApproval(true);
           setIsApproved(false);
+          setIsKicked(false);
         } else {
           // Request to join again
           emit('requestJoin', { name: savedName });
@@ -50,6 +54,17 @@ const StudentInterface: React.FC = () => {
       }
     }
   }, [dispatch, emit, students, pendingStudents, currentPoll]);
+
+  // Check if student is kicked out
+  useEffect(() => {
+    if (studentName && isApproved && hasJoined) {
+      const student = students.find(s => s.name === studentName);
+      if (!student) {
+        console.log('Student kicked out, redirecting to kicked out page');
+        setIsKicked(true);
+      }
+    }
+  }, [students, studentName, isApproved, hasJoined]);
 
   on('newPoll', () => {
     setHasAnswered(false);
@@ -69,16 +84,16 @@ const StudentInterface: React.FC = () => {
     setHasAnswered(false);
     dispatch(setShowResults(false));
     // Show welcome screen again after poll is removed
-    if (isApproved) {
+    if (isApproved && !isKicked) {
       setShowWelcome(true);
     }
   });
 
   on('studentRemoved', (data: { name: string }) => {
     if (data.name === studentName) {
-      // Show toast notification instead of redirecting
+      console.log('Student removed event received for:', data.name);
       toast.error("You have been removed from the poll by the teacher");
-      // Stay on the same page but show as kicked out state
+      setIsKicked(true);
     }
   });
 
@@ -86,6 +101,7 @@ const StudentInterface: React.FC = () => {
     if (data.name === studentName) {
       setIsWaitingApproval(false);
       setIsApproved(true);
+      setIsKicked(false);
       setShowWelcome(true);
     }
   });
@@ -94,6 +110,7 @@ const StudentInterface: React.FC = () => {
     if (data.name === studentName) {
       setIsWaitingApproval(false);
       setIsApproved(false);
+      setIsKicked(false);
       setHasJoined(false);
       sessionStorage.removeItem('studentName');
     }
@@ -104,6 +121,7 @@ const StudentInterface: React.FC = () => {
     sessionStorage.setItem('studentName', name);
     setHasJoined(true);
     setIsWaitingApproval(true);
+    setIsKicked(false);
     emit('requestJoin', { name });
   };
 
@@ -120,15 +138,14 @@ const StudentInterface: React.FC = () => {
     setIsWaitingApproval(false);
     setIsApproved(false);
     setShowWelcome(false);
+    setIsKicked(false);
   };
 
   const handleWelcomeContinue = () => {
     setShowWelcome(false);
   };
 
-  // Check if student is kicked but don't redirect
-  const isKicked = isApproved && !students.find(s => s.name === studentName);
-
+  // Show KickedOut component if student is kicked
   if (isKicked) {
     return <KickedOut onReturnHome={handleReturnHome} />;
   }
@@ -162,19 +179,7 @@ const StudentInterface: React.FC = () => {
       <div className="flex h-screen">
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {isKicked && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md m-4">
-              <p className="font-medium">You have been removed from the poll by the teacher.</p>
-              <button 
-                onClick={handleReturnHome}
-                className="mt-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm"
-              >
-                Return to Home
-              </button>
-            </div>
-          )}
-          
-          {!currentPoll && !isKicked ? (
+          {!currentPoll ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <div className="inline-flex items-center bg-purple-600 text-white px-4 py-2 rounded-full mb-8">
@@ -189,7 +194,7 @@ const StudentInterface: React.FC = () => {
             <div className="flex-1 p-6 overflow-y-auto">
               <div className="space-y-6">
                 {/* Current Poll */}
-                {currentPoll && !isKicked && (
+                {currentPoll && (
                   <div className="bg-white rounded-lg shadow-sm">
                     <div className="flex justify-between items-center p-6 border-b border-gray-200">
                       <div className="flex items-center space-x-4">
@@ -233,8 +238,8 @@ const StudentInterface: React.FC = () => {
                           <div className="space-y-4">
                             {poll.options.map((option, optIndex) => {
                               const votes = poll.votes[option] || 0;
-                              const totalVotes = Object.values(poll.votes).reduce((sum, v) => sum + v, 0);
-                              const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                              const totalStudents = students.length;
+                              const percentage = totalStudents > 0 ? Math.round((votes / totalStudents) * 100) : 0;
                               
                               return (
                                 <div key={option} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -257,7 +262,7 @@ const StudentInterface: React.FC = () => {
                                       />
                                     </div>
                                     <div className="text-sm text-gray-500 mt-2">
-                                      {votes} vote{votes !== 1 ? 's' : ''}
+                                      {votes} vote{votes !== 1 ? 's' : ''} out of {totalStudents} students
                                     </div>
                                   </div>
                                 </div>
