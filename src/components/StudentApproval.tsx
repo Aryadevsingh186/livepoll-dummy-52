@@ -2,7 +2,6 @@
 import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
-import { approveStudent, rejectStudent } from '../store/pollSlice';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +15,6 @@ const StudentApproval: React.FC = () => {
   useEffect(() => {
     console.log('StudentApproval - Pending students:', pendingStudents);
   }, [pendingStudents]);
-
-  on('studentJoinRequest', (data: { name: string }) => {
-    console.log('StudentApproval - Received join request:', data.name);
-    // The request is already handled by the websocket service
-  });
 
   const handleApprove = (studentName: string) => {
     console.log('Approving student:', studentName);
@@ -40,8 +34,8 @@ const StudentApproval: React.FC = () => {
   console.log('Rendering StudentApproval with', pendingStudents.length, 'pending students');
 
   return (
-    <Card className="mb-6 bg-yellow-50 border-yellow-200">
-      <CardHeader>
+    <Card className="mb-6 bg-yellow-50 border-yellow-300 shadow-md">
+      <CardHeader className="pb-4">
         <CardTitle className="text-yellow-800 flex items-center">
           <Clock className="w-5 h-5 mr-2" />
           Student Join Requests ({pendingStudents.length})
@@ -50,7 +44,7 @@ const StudentApproval: React.FC = () => {
       <CardContent>
         <div className="space-y-3">
           {pendingStudents.map((student) => (
-            <div key={student.id} className="flex items-center justify-between bg-white p-4 rounded-lg border shadow-sm">
+            <div key={student.id} className="flex items-center justify-between bg-white p-4 rounded-lg border border-yellow-200 shadow-sm">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-medium">
                   {student.name.charAt(0).toUpperCase()}

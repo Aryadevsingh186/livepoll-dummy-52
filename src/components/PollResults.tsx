@@ -2,7 +2,6 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { Button } from '@/components/ui/button';
 
 const PollResults: React.FC = () => {
   const { currentPoll } = useSelector((state: RootState) => state.poll);
@@ -22,24 +21,31 @@ const PollResults: React.FC = () => {
       <div className="space-y-4 mb-8">
         {currentPoll.options.map((option, index) => {
           const votes = currentPoll.votes[option] || 0;
-          const percentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0;
+          const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
           
           return (
-            <div key={option} className="flex items-center space-x-4">
-              <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-medium">
-                {index + 1}
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-2">
+            <div key={option} className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-medium text-sm">
+                    {index + 1}
+                  </div>
                   <span className="text-gray-900 font-medium text-lg">{option}</span>
-                  <span className="text-gray-600 font-medium">{percentage.toFixed(0)}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className="bg-purple-600 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${percentage}%` }}
-                  ></div>
+                <span className="text-gray-900 font-bold text-lg">{percentage}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4">
+                <div 
+                  className="bg-purple-600 h-4 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                  style={{ width: `${percentage}%` }}
+                >
+                  {percentage > 15 && (
+                    <span className="text-white text-xs font-medium">{percentage}%</span>
+                  )}
                 </div>
+              </div>
+              <div className="text-sm text-gray-500 mt-1">
+                {votes} vote{votes !== 1 ? 's' : ''}
               </div>
             </div>
           );

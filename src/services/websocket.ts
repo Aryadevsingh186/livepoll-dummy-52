@@ -1,4 +1,3 @@
-
 import { store } from '../store';
 import { addPendingStudent, approveStudent, rejectStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, removePoll } from '../store/pollSlice';
 
@@ -16,17 +15,10 @@ class WebSocketService {
   private chatMessages: ChatMessage[] = [];
 
   constructor() {
-    // Clear localStorage on teacher start
-    this.clearStorageOnStart();
+    // Initialize storage sync
+    this.syncFromStorage();
     // Listen for storage events to sync across tabs
     window.addEventListener('storage', this.handleStorageChange.bind(this));
-    this.syncFromStorage();
-  }
-
-  private clearStorageOnStart() {
-    // Clear all poll-related data from localStorage when starting fresh
-    const keysToRemove = Object.keys(localStorage).filter(key => key.startsWith('poll_'));
-    keysToRemove.forEach(key => localStorage.removeItem(key));
   }
 
   emit(event: string, data: any) {
@@ -58,6 +50,7 @@ class WebSocketService {
         this.broadcast('newPoll', data);
         this.saveToStorage('currentPoll', data);
         this.saveToStorage('pollActive', true);
+        this.saveToStorage('showResults', false);
         this.startPollTimer(data.maxTime);
         break;
       case 'submitVote':
