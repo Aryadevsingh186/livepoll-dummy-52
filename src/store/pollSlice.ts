@@ -32,7 +32,7 @@ interface PollState {
   studentName: string;
   timeRemaining: number;
   showResults: boolean;
-  kickedStudents: string[]; // Track kicked students
+  kickedStudents: string[];
 }
 
 const initialState: PollState = {
@@ -53,6 +53,7 @@ const pollSlice = createSlice({
     setRole: (state, action: PayloadAction<'teacher' | 'student'>) => {
       state.role = action.payload;
       if (action.payload === 'teacher') {
+        // Reset everything for teacher role
         state.currentPoll = null;
         state.students = [];
         state.pendingStudents = [];
@@ -87,18 +88,17 @@ const pollSlice = createSlice({
           isApproved: true,
         });
         state.pendingStudents = state.pendingStudents.filter(s => s.name !== action.payload);
-        // Remove from kicked list if they were previously kicked
         state.kickedStudents = state.kickedStudents.filter(name => name !== action.payload);
       }
     },
     rejectStudent: (state, action: PayloadAction<string>) => {
       state.pendingStudents = state.pendingStudents.filter(s => s.name !== action.payload);
-      // Add to kicked students list
       if (!state.kickedStudents.includes(action.payload)) {
         state.kickedStudents.push(action.payload);
       }
     },
     createPoll: (state, action: PayloadAction<{ question: string; options: string[]; maxTime: number }>) => {
+      // Clear any existing poll completely - no history
       const newPoll: Poll = {
         id: Date.now().toString(),
         question: action.payload.question,
@@ -110,15 +110,18 @@ const pollSlice = createSlice({
       };
       
       state.currentPoll = newPoll;
+      // Reset all students' answered status for new poll
       state.students = state.students.map(s => ({ ...s, hasAnswered: false }));
       state.timeRemaining = action.payload.maxTime;
       state.showResults = false;
     },
     submitVote: (state, action: PayloadAction<{ studentName: string; option: string }>) => {
-      if (state.currentPoll) {
-        state.currentPoll.votes[action.payload.option]++;
+      if (state.currentPoll && state.currentPoll.isActive) {
+        // Only allow voting if poll is active
         const student = state.students.find(s => s.name === action.payload.studentName);
-        if (student) {
+        if (student && !student.hasAnswered) {
+          // Only count vote if student hasn't answered yet
+          state.currentPoll.votes[action.payload.option]++;
           student.hasAnswered = true;
         }
       }
@@ -137,11 +140,11 @@ const pollSlice = createSlice({
     },
     removeStudent: (state, action: PayloadAction<string>) => {
       state.students = state.students.filter(s => s.name !== action.payload);
-      // Add to kicked students list
       if (!state.kickedStudents.includes(action.payload)) {
         state.kickedStudents.push(action.payload);
       }
     },
+    // Remove poll completely - no history
     removePoll: (state) => {
       state.currentPoll = null;
       state.students = state.students.map(s => ({ ...s, hasAnswered: false }));
