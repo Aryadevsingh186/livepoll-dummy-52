@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Clock } from 'lucide-react';
 
 const TeacherDashboard: React.FC = () => {
-  const { currentPoll, timeRemaining, pendingStudents } = useSelector((state: RootState) => state.poll);
+  const { currentPoll, timeRemaining, pendingStudents, pollHistory, students } = useSelector((state: RootState) => state.poll);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'participants'>('participants');
   const { emit, on } = useWebSocket();
@@ -42,7 +42,7 @@ const TeacherDashboard: React.FC = () => {
       <div className="flex h-screen">
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {!currentPoll ? (
+          {!currentPoll && pollHistory.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6">
               {/* Student Approval Section - Always show at top when there are pending students */}
               {pendingStudents.length > 0 && (
@@ -76,30 +76,106 @@ const TeacherDashboard: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="flex-1 p-6">
-              <div className="bg-white rounded-lg shadow-sm p-6 h-full">
-                <div className="flex justify-between items-center mb-6">
-                  <div className="flex items-center space-x-4">
-                    <h2 className="text-xl font-semibold text-gray-900">Question</h2>
-                    {currentPoll.isActive && (
-                      <div className="flex items-center text-red-600 font-medium">
-                        <Clock className="w-4 h-4 mr-1" />
-                        {Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:
-                        {(timeRemaining % 60).toString().padStart(2, '0')}
+            <div className="flex-1 p-6 overflow-y-auto">
+              <div className="space-y-6">
+                {/* Current Poll */}
+                {currentPoll && (
+                  <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center space-x-4">
+                        <h2 className="text-xl font-semibold text-gray-900">Current Question</h2>
+                        {currentPoll.isActive && (
+                          <div className="flex items-center text-red-600 font-medium">
+                            <Clock className="w-4 h-4 mr-1" />
+                            {Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:
+                            {(timeRemaining % 60).toString().padStart(2, '0')}
+                          </div>
+                        )}
                       </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          onClick={handleCreateNewQuestion}
+                          className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full"
+                        >
+                          + Ask a new question
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <PollResults />
+                  </div>
+                )}
+
+                {/* Show Create Poll Button if no current poll */}
+                {!currentPoll && pollHistory.length > 0 && (
+                  <div className="text-center py-8">
+                    {showCreatePoll ? (
+                      <CreatePoll onClose={() => setShowCreatePoll(false)} />
+                    ) : (
+                      <Button
+                        onClick={handleCreateNewQuestion}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg rounded-full"
+                      >
+                        + Ask a new question
+                      </Button>
                     )}
                   </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={handleCreateNewQuestion}
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full"
-                    >
-                      + Ask a new question
-                    </Button>
+                )}
+
+                {/* Poll History */}
+                {pollHistory.length > 0 && (
+                  <div className="space-y-6">
+                    <h2 className="text-2xl font-bold text-gray-900">Previous Questions</h2>
+                    {pollHistory.map((poll, index) => (
+                      <div key={poll.id} className="bg-white rounded-lg shadow-sm p-6">
+                        <div className="mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            Question {index + 1}
+                          </h3>
+                        </div>
+                        
+                        <div className="bg-gray-800 text-white p-4 rounded-lg mb-6">
+                          <h4 className="text-lg font-medium">{poll.question}</h4>
+                        </div>
+
+                        <div className="space-y-4">
+                          {poll.options.map((option, optIndex) => {
+                            const votes = poll.votes[option] || 0;
+                            const totalStudents = students.length;
+                            const percentage = totalStudents > 0 ? Math.round((votes / totalStudents) * 100) : 0;
+                            
+                            return (
+                              <div key={option} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <div className="flex items-center justify-between p-4">
+                                  <div className="flex items-center space-x-3 flex-1">
+                                    <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-medium text-sm">
+                                      {optIndex + 1}
+                                    </div>
+                                    <span className="text-gray-900 font-medium text-lg flex-1">{option}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-gray-900 font-bold text-lg">{percentage}%</div>
+                                  </div>
+                                </div>
+                                <div className="px-4 pb-4">
+                                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                                    <div 
+                                      className="bg-purple-600 h-full rounded-full transition-all duration-500"
+                                      style={{ width: `${percentage}%` }}
+                                    />
+                                  </div>
+                                  <div className="text-sm text-gray-500 mt-2">
+                                    {votes} vote{votes !== 1 ? 's' : ''} out of {totalStudents} students
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                
-                <PollResults />
+                )}
               </div>
             </div>
           )}
