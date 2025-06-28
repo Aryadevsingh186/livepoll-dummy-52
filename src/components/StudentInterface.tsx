@@ -14,7 +14,7 @@ import { Clock } from 'lucide-react';
 
 const StudentInterface: React.FC = () => {
   const dispatch = useDispatch();
-  const { currentPoll, studentName, timeRemaining, showResults, students, pendingStudents, pollHistory } = useSelector((state: RootState) => state.poll);
+  const { currentPoll, studentName, timeRemaining, showResults, students, pendingStudents, pollHistory, kickedStudents } = useSelector((state: RootState) => state.poll);
   const { emit, on } = useWebSocket();
   const [hasJoined, setHasJoined] = useState(false);
   const [hasAnswered, setHasAnswered] = useState(false);
@@ -23,49 +23,64 @@ const StudentInterface: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(false);
   const [isKicked, setIsKicked] = useState(false);
 
+  // Check if student is kicked on load
   useEffect(() => {
     const savedName = sessionStorage.getItem('studentName');
     if (savedName) {
+      // Check if student is in kicked list
+      if (kickedStudents.includes(savedName)) {
+        console.log('Student is in kicked list, showing kicked out page');
+        setIsKicked(true);
+        return;
+      }
+
       dispatch(setStudentName(savedName));
       setHasJoined(true);
-      // Check if student is already approved
+      
       const student = students.find(s => s.name === savedName);
       if (student) {
         setIsApproved(true);
         setIsWaitingApproval(false);
         setIsKicked(false);
-        // Show welcome if no current poll
         if (!currentPoll) {
           setShowWelcome(true);
         }
       } else {
-        // Check if waiting for approval
         const pending = pendingStudents.find(s => s.name === savedName);
         if (pending) {
           setIsWaitingApproval(true);
           setIsApproved(false);
           setIsKicked(false);
         } else {
-          // Student might have been kicked or rejected - redirect to kicked out
-          console.log('Student not found in approved or pending lists, redirecting to kicked out');
+          console.log('Student not found in approved or pending lists, showing kicked out page');
           setIsKicked(true);
         }
       }
     }
-  }, [dispatch, students, pendingStudents, currentPoll]);
+  }, [dispatch, students, pendingStudents, currentPoll, kickedStudents]);
 
-  // Check if student is kicked out
+  // Monitor for being kicked out
   useEffect(() => {
-    if (studentName && isApproved && hasJoined) {
+    if (studentName && hasJoined) {
+      // Check if student is in kicked list
+      if (kickedStudents.includes(studentName)) {
+        console.log('Student found in kicked list, redirecting to kicked out');
+        setIsKicked(true);
+        setIsApproved(false);
+        return;
+      }
+
+      // Check if student was removed from approved list
       const student = students.find(s => s.name === studentName);
-      if (!student) {
-        console.log('Student kicked out, redirecting to kicked out page');
+      if (isApproved && !student) {
+        console.log('Student removed from approved list, showing kicked out page');
         setIsKicked(true);
         setIsApproved(false);
       }
     }
-  }, [students, studentName, isApproved, hasJoined]);
+  }, [students, studentName, isApproved, hasJoined, kickedStudents]);
 
+  // WebSocket event handlers
   on('newPoll', () => {
     setHasAnswered(false);
     setShowWelcome(false);
@@ -83,7 +98,6 @@ const StudentInterface: React.FC = () => {
   on('pollRemoved', () => {
     setHasAnswered(false);
     dispatch(setShowResults(false));
-    // Show welcome screen again after poll is removed
     if (isApproved && !isKicked) {
       setShowWelcome(true);
     }
@@ -108,7 +122,7 @@ const StudentInterface: React.FC = () => {
 
   on('studentRejected', (data: { name: string }) => {
     if (data.name === studentName) {
-      console.log('Student rejected, redirecting to kicked out page');
+      console.log('Student rejected, showing kicked out page');
       setIsKicked(true);
       setIsWaitingApproval(false);
       setIsApproved(false);
@@ -117,6 +131,12 @@ const StudentInterface: React.FC = () => {
   });
 
   const handleJoin = (name: string) => {
+    // Check if student is kicked before allowing join
+    if (kickedStudents.includes(name)) {
+      setIsKicked(true);
+      return;
+    }
+
     dispatch(setStudentName(name));
     sessionStorage.setItem('studentName', name);
     setHasJoined(true);
@@ -221,7 +241,7 @@ const StudentInterface: React.FC = () => {
                   </div>
                 )}
 
-                {/* Poll History - Show each poll only once */}
+                {/* Poll History */}
                 {pollHistory.length > 0 && (
                   <div className="space-y-6">
                     {pollHistory.map((poll, index) => (
@@ -238,8 +258,8 @@ const StudentInterface: React.FC = () => {
                           <div className="space-y-4">
                             {poll.options.map((option, optIndex) => {
                               const votes = poll.votes[option] || 0;
-                              const totalVotes = Object.values(poll.votes).reduce((sum, v) => sum + v, 0);
-                              const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                              const totalStudents = students.length;
+                              const percentage = totalStudents > 0 ? Math.round((votes / totalStudents) * 100) : 0;
                               
                               return (
                                 <div key={option} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -262,7 +282,7 @@ const StudentInterface: React.FC = () => {
                                       />
                                     </div>
                                     <div className="text-sm text-gray-500 mt-2">
-                                      {votes} vote{votes !== 1 ? 's' : ''} ({totalVotes} total votes)
+                                      {votes} out of {totalStudents} students ({percentage}%)
                                     </div>
                                   </div>
                                 </div>

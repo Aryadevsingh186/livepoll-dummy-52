@@ -33,6 +33,7 @@ interface PollState {
   pollHistory: Poll[];
   timeRemaining: number;
   showResults: boolean;
+  kickedStudents: string[]; // Track kicked students
 }
 
 const initialState: PollState = {
@@ -44,6 +45,7 @@ const initialState: PollState = {
   pollHistory: [],
   timeRemaining: 0,
   showResults: false,
+  kickedStudents: [],
 };
 
 const pollSlice = createSlice({
@@ -52,7 +54,6 @@ const pollSlice = createSlice({
   reducers: {
     setRole: (state, action: PayloadAction<'teacher' | 'student'>) => {
       state.role = action.payload;
-      // Clear everything when teacher starts fresh
       if (action.payload === 'teacher') {
         state.currentPoll = null;
         state.students = [];
@@ -60,6 +61,7 @@ const pollSlice = createSlice({
         state.pollHistory = [];
         state.timeRemaining = 0;
         state.showResults = false;
+        state.kickedStudents = [];
       }
     },
     setStudentName: (state, action: PayloadAction<string>) => {
@@ -68,8 +70,9 @@ const pollSlice = createSlice({
     addPendingStudent: (state, action: PayloadAction<string>) => {
       const existingPending = state.pendingStudents.find(s => s.name === action.payload);
       const existingApproved = state.students.find(s => s.name === action.payload);
+      const isKicked = state.kickedStudents.includes(action.payload);
       
-      if (!existingPending && !existingApproved) {
+      if (!existingPending && !existingApproved && !isKicked) {
         state.pendingStudents.push({
           id: Date.now().toString(),
           name: action.payload,
@@ -87,12 +90,23 @@ const pollSlice = createSlice({
           isApproved: true,
         });
         state.pendingStudents = state.pendingStudents.filter(s => s.name !== action.payload);
+        // Remove from kicked list if they were previously kicked
+        state.kickedStudents = state.kickedStudents.filter(name => name !== action.payload);
       }
     },
     rejectStudent: (state, action: PayloadAction<string>) => {
       state.pendingStudents = state.pendingStudents.filter(s => s.name !== action.payload);
+      // Add to kicked students list
+      if (!state.kickedStudents.includes(action.payload)) {
+        state.kickedStudents.push(action.payload);
+      }
     },
     createPoll: (state, action: PayloadAction<{ question: string; options: string[]; maxTime: number }>) => {
+      // Add current poll to history if it exists and isn't already there
+      if (state.currentPoll && !state.pollHistory.some(p => p.id === state.currentPoll!.id)) {
+        state.pollHistory.push({ ...state.currentPoll });
+      }
+      
       const newPoll: Poll = {
         id: Date.now().toString(),
         question: action.payload.question,
@@ -102,10 +116,7 @@ const pollSlice = createSlice({
         createdAt: Date.now(),
         maxTime: action.payload.maxTime,
       };
-      // Only add current poll to history if it exists and is not already there
-      if (state.currentPoll && !state.pollHistory.find(p => p.id === state.currentPoll!.id)) {
-        state.pollHistory.push(state.currentPoll);
-      }
+      
       state.currentPoll = newPoll;
       state.students = state.students.map(s => ({ ...s, hasAnswered: false }));
       state.timeRemaining = action.payload.maxTime;
@@ -134,11 +145,15 @@ const pollSlice = createSlice({
     },
     removeStudent: (state, action: PayloadAction<string>) => {
       state.students = state.students.filter(s => s.name !== action.payload);
+      // Add to kicked students list
+      if (!state.kickedStudents.includes(action.payload)) {
+        state.kickedStudents.push(action.payload);
+      }
     },
     removePoll: (state) => {
-      // Only add to history if not already there
-      if (state.currentPoll && !state.pollHistory.find(p => p.id === state.currentPoll!.id)) {
-        state.pollHistory.push(state.currentPoll);
+      // Add to history if not already there
+      if (state.currentPoll && !state.pollHistory.some(p => p.id === state.currentPoll!.id)) {
+        state.pollHistory.push({ ...state.currentPoll });
       }
       state.currentPoll = null;
       state.students = state.students.map(s => ({ ...s, hasAnswered: false }));

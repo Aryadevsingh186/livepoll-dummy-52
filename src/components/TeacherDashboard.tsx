@@ -115,7 +115,7 @@ const TeacherDashboard: React.FC = () => {
                   </div>
                 )}
 
-                {/* Poll History - Show each poll only once */}
+                {/* Poll History - Only unique polls */}
                 {pollHistory.length > 0 && (
                   <div className="space-y-6">
                     <h2 className="text-2xl font-bold text-gray-900">Previous Questions</h2>
@@ -134,8 +134,8 @@ const TeacherDashboard: React.FC = () => {
                         <div className="space-y-4">
                           {poll.options.map((option, optIndex) => {
                             const votes = poll.votes[option] || 0;
-                            const totalVotes = Object.values(poll.votes).reduce((sum, v) => sum + v, 0);
-                            const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                            const totalStudents = students.length;
+                            const percentage = totalStudents > 0 ? Math.round((votes / totalStudents) * 100) : 0;
                             
                             return (
                               <div key={option} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -158,7 +158,7 @@ const TeacherDashboard: React.FC = () => {
                                     />
                                   </div>
                                   <div className="text-sm text-gray-500 mt-2">
-                                    {votes} vote{votes !== 1 ? 's' : ''} ({totalVotes} total votes from {students.length} students)
+                                    {votes} out of {totalStudents} students ({percentage}%)
                                   </div>
                                 </div>
                               </div>
