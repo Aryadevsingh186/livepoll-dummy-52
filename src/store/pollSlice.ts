@@ -15,11 +15,19 @@ export interface Student {
   id: string;
   name: string;
   hasAnswered: boolean;
+  isApproved: boolean;
+}
+
+export interface PendingStudent {
+  id: string;
+  name: string;
+  timestamp: number;
 }
 
 interface PollState {
   currentPoll: Poll | null;
   students: Student[];
+  pendingStudents: PendingStudent[];
   role: 'teacher' | 'student' | null;
   studentName: string;
   pollHistory: Poll[];
@@ -30,6 +38,7 @@ interface PollState {
 const initialState: PollState = {
   currentPoll: null,
   students: [],
+  pendingStudents: [],
   role: null,
   studentName: '',
   pollHistory: [],
@@ -43,9 +52,45 @@ const pollSlice = createSlice({
   reducers: {
     setRole: (state, action: PayloadAction<'teacher' | 'student'>) => {
       state.role = action.payload;
+      // Clear everything when teacher starts fresh
+      if (action.payload === 'teacher') {
+        state.currentPoll = null;
+        state.students = [];
+        state.pendingStudents = [];
+        state.pollHistory = [];
+        state.timeRemaining = 0;
+        state.showResults = false;
+      }
     },
     setStudentName: (state, action: PayloadAction<string>) => {
       state.studentName = action.payload;
+    },
+    addPendingStudent: (state, action: PayloadAction<string>) => {
+      const existingPending = state.pendingStudents.find(s => s.name === action.payload);
+      const existingApproved = state.students.find(s => s.name === action.payload);
+      
+      if (!existingPending && !existingApproved) {
+        state.pendingStudents.push({
+          id: Date.now().toString(),
+          name: action.payload,
+          timestamp: Date.now(),
+        });
+      }
+    },
+    approveStudent: (state, action: PayloadAction<string>) => {
+      const pendingStudent = state.pendingStudents.find(s => s.name === action.payload);
+      if (pendingStudent) {
+        state.students.push({
+          id: pendingStudent.id,
+          name: pendingStudent.name,
+          hasAnswered: false,
+          isApproved: true,
+        });
+        state.pendingStudents = state.pendingStudents.filter(s => s.name !== action.payload);
+      }
+    },
+    rejectStudent: (state, action: PayloadAction<string>) => {
+      state.pendingStudents = state.pendingStudents.filter(s => s.name !== action.payload);
     },
     createPoll: (state, action: PayloadAction<{ question: string; options: string[]; maxTime: number }>) => {
       const newPoll: Poll = {
@@ -64,16 +109,6 @@ const pollSlice = createSlice({
       state.students = state.students.map(s => ({ ...s, hasAnswered: false }));
       state.timeRemaining = action.payload.maxTime;
       state.showResults = false;
-    },
-    addStudent: (state, action: PayloadAction<string>) => {
-      const studentExists = state.students.find(s => s.name === action.payload);
-      if (!studentExists) {
-        state.students.push({
-          id: Date.now().toString(),
-          name: action.payload,
-          hasAnswered: false,
-        });
-      }
     },
     submitVote: (state, action: PayloadAction<{ studentName: string; option: string }>) => {
       if (state.currentPoll) {
@@ -112,14 +147,19 @@ const pollSlice = createSlice({
       state.role = null;
       state.studentName = '';
     },
+    clearAllData: (state) => {
+      return { ...initialState };
+    },
   },
 });
 
 export const {
   setRole,
   setStudentName,
+  addPendingStudent,
+  approveStudent,
+  rejectStudent,
   createPoll,
-  addStudent,
   submitVote,
   setTimeRemaining,
   endPoll,
@@ -127,6 +167,7 @@ export const {
   removeStudent,
   removePoll,
   leavePoll,
+  clearAllData,
 } = pollSlice.actions;
 
 export default pollSlice.reducer;

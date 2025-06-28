@@ -1,25 +1,44 @@
 
 import { store } from '../store';
-import { addStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, removePoll } from '../store/pollSlice';
+import { addPendingStudent, approveStudent, rejectStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, removePoll } from '../store/pollSlice';
 
 class WebSocketService {
   private listeners: { [event: string]: Function[] } = {};
   private pollTimer: NodeJS.Timeout | null = null;
 
   constructor() {
+    // Clear localStorage on teacher start
+    this.clearStorageOnStart();
     // Listen for storage events to sync across tabs
     window.addEventListener('storage', this.handleStorageChange.bind(this));
     this.syncFromStorage();
+  }
+
+  private clearStorageOnStart() {
+    // Clear all poll-related data from localStorage when starting fresh
+    const keysToRemove = Object.keys(localStorage).filter(key => key.startsWith('poll_'));
+    keysToRemove.forEach(key => localStorage.removeItem(key));
   }
 
   emit(event: string, data: any) {
     console.log(`Emitting ${event}:`, data);
     
     switch (event) {
-      case 'joinAsStudent':
-        store.dispatch(addStudent(data.name));
-        this.broadcast('studentJoined', { name: data.name });
+      case 'requestJoin':
+        store.dispatch(addPendingStudent(data.name));
+        this.broadcast('studentJoinRequest', { name: data.name });
+        this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
+        break;
+      case 'approveStudent':
+        store.dispatch(approveStudent(data.studentName));
+        this.broadcast('studentApproved', { name: data.studentName });
         this.saveToStorage('students', store.getState().poll.students);
+        this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
+        break;
+      case 'rejectStudent':
+        store.dispatch(rejectStudent(data.studentName));
+        this.broadcast('studentRejected', { name: data.studentName });
+        this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
         break;
       case 'createPoll':
         store.dispatch(createPoll(data));
@@ -109,13 +128,20 @@ class WebSocketService {
 
   private syncFromStorage() {
     const students = this.getFromStorage('students');
+    const pendingStudents = this.getFromStorage('pendingStudents');
     const currentPoll = this.getFromStorage('currentPoll');
     const pollActive = this.getFromStorage('pollActive');
     const timeRemaining = this.getFromStorage('timeRemaining');
 
+    if (pendingStudents) {
+      pendingStudents.forEach((student: any) => {
+        store.dispatch(addPendingStudent(student.name));
+      });
+    }
+
     if (students) {
       students.forEach((student: any) => {
-        store.dispatch(addStudent(student.name));
+        store.dispatch(approveStudent(student.name));
       });
     }
 

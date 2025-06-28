@@ -13,21 +13,38 @@ import { Clock } from 'lucide-react';
 
 const StudentInterface: React.FC = () => {
   const dispatch = useDispatch();
-  const { currentPoll, studentName, timeRemaining, showResults } = useSelector((state: RootState) => state.poll);
+  const { currentPoll, studentName, timeRemaining, showResults, students, pendingStudents } = useSelector((state: RootState) => state.poll);
   const { emit, on } = useWebSocket();
   const [hasJoined, setHasJoined] = useState(false);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [isKickedOut, setIsKickedOut] = useState(false);
-  const [activeTab, setActiveTab] = useState<'question' | 'chat'>('question');
+  const [isWaitingApproval, setIsWaitingApproval] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
 
   useEffect(() => {
     const savedName = sessionStorage.getItem('studentName');
     if (savedName) {
       dispatch(setStudentName(savedName));
       setHasJoined(true);
-      emit('joinAsStudent', { name: savedName });
+      // Check if student is already approved
+      const student = students.find(s => s.name === savedName);
+      if (student) {
+        setIsApproved(true);
+        setIsWaitingApproval(false);
+      } else {
+        // Check if waiting for approval
+        const pending = pendingStudents.find(s => s.name === savedName);
+        if (pending) {
+          setIsWaitingApproval(true);
+          setIsApproved(false);
+        } else {
+          // Request to join again
+          emit('requestJoin', { name: savedName });
+          setIsWaitingApproval(true);
+        }
+      }
     }
-  }, [dispatch, emit]);
+  }, [dispatch, emit, students, pendingStudents]);
 
   on('newPoll', () => {
     setHasAnswered(false);
@@ -53,12 +70,29 @@ const StudentInterface: React.FC = () => {
     }
   });
 
+  on('studentApproved', (data: { name: string }) => {
+    if (data.name === studentName) {
+      setIsWaitingApproval(false);
+      setIsApproved(true);
+    }
+  });
+
+  on('studentRejected', (data: { name: string }) => {
+    if (data.name === studentName) {
+      setIsWaitingApproval(false);
+      setIsApproved(false);
+      setHasJoined(false);
+      sessionStorage.removeItem('studentName');
+    }
+  });
+
   const handleJoin = (name: string) => {
     dispatch(setStudentName(name));
     sessionStorage.setItem('studentName', name);
     setHasJoined(true);
     setIsKickedOut(false);
-    emit('joinAsStudent', { name });
+    setIsWaitingApproval(true);
+    emit('requestJoin', { name });
   };
 
   const handleAnswerSubmit = (option: string) => {
@@ -72,6 +106,8 @@ const StudentInterface: React.FC = () => {
     setHasJoined(false);
     setHasAnswered(false);
     setIsKickedOut(false);
+    setIsWaitingApproval(false);
+    setIsApproved(false);
   };
 
   if (isKickedOut) {
@@ -80,6 +116,22 @@ const StudentInterface: React.FC = () => {
 
   if (!hasJoined) {
     return <StudentJoin onJoin={handleJoin} />;
+  }
+
+  if (isWaitingApproval) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center bg-purple-600 text-white px-4 py-2 rounded-full mb-8">
+            <span className="mr-2">⭐</span>
+            <span className="font-medium">Intervue Poll</span>
+          </div>
+          <div className="w-16 h-16 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-8"></div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Waiting for teacher approval...</h1>
+          <p className="text-gray-600">Your teacher needs to approve your request to join the poll.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -105,7 +157,7 @@ const StudentInterface: React.FC = () => {
                 <div className="flex justify-between items-center p-6 border-b border-gray-200">
                   <div className="flex items-center space-x-4">
                     <h2 className="text-xl font-semibold text-gray-900">
-                      Question {currentPoll ? '1' : ''}
+                      Question 1
                     </h2>
                     {currentPoll?.isActive && timeRemaining > 0 && (
                       <div className="flex items-center text-red-600 font-medium">

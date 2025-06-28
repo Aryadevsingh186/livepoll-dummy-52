@@ -7,13 +7,14 @@ import CreatePoll from './CreatePoll';
 import PollResults from './PollResults';
 import ParticipantsPanel from './ParticipantsPanel';
 import ChatPanel from './ChatPanel';
+import StudentApproval from './StudentApproval';
 import { Button } from '@/components/ui/button';
 import { Clock } from 'lucide-react';
 
 const TeacherDashboard: React.FC = () => {
-  const { currentPoll, timeRemaining } = useSelector((state: RootState) => state.poll);
+  const { currentPoll, timeRemaining, pendingStudents } = useSelector((state: RootState) => state.poll);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
-  const [activeTab, setActiveTab] = useState<'chat' | 'participants'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'participants'>('participants');
   const { emit } = useWebSocket();
 
   const handleCreateNewQuestion = () => {
@@ -32,7 +33,14 @@ const TeacherDashboard: React.FC = () => {
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           {!currentPoll ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex-1 flex flex-col items-center justify-center p-6">
+              {/* Student Approval Section */}
+              {pendingStudents.length > 0 && (
+                <div className="w-full max-w-2xl mb-8">
+                  <StudentApproval />
+                </div>
+              )}
+              
               <div className="text-center">
                 <div className="inline-flex items-center bg-purple-600 text-white px-4 py-2 rounded-full mb-8">
                   <span className="mr-2">⭐</span>
@@ -102,13 +110,18 @@ const TeacherDashboard: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('participants')}
-              className={`flex-1 px-4 py-3 text-center font-medium ${
+              className={`flex-1 px-4 py-3 text-center font-medium relative ${
                 activeTab === 'participants' 
                   ? 'text-purple-600 border-b-2 border-purple-600' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Participants
+              {pendingStudents.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {pendingStudents.length}
+                </span>
+              )}
             </button>
           </div>
           
