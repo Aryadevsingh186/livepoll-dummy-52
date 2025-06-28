@@ -16,6 +16,7 @@ class WebSocketService {
   private pollTimer: NodeJS.Timeout | null = null;
   private chatMessages: ChatMessage[] = [];
   private isProcessingVote = false;
+  private processedVotes = new Set<string>(); // Track processed votes
 
   constructor() {
     this.syncFromStorage();
@@ -89,6 +90,9 @@ class WebSocketService {
   private handleCreatePoll(data: any) {
     this.stopTimer();
     
+    // Clear processed votes when creating new poll
+    this.processedVotes.clear();
+    
     store.dispatch(createPoll(data));
     
     const newState = store.getState().poll;
@@ -102,9 +106,18 @@ class WebSocketService {
   }
 
   private async handleVoteSubmission(voteData: { studentName: string; option: string }) {
+    // Create unique vote identifier
+    const voteId = `${voteData.studentName}_${voteData.option}_${Date.now()}`;
+    
+    // Check if this exact vote was already processed recently
+    if (this.processedVotes.has(`${voteData.studentName}_current_poll`)) {
+      console.log('Duplicate vote attempt blocked for:', voteData.studentName);
+      return;
+    }
+
     // Prevent race conditions
     if (this.isProcessingVote) {
-      console.log('Vote processing in progress, skipping duplicate request');
+      console.log('Vote processing in progress, blocking duplicate request');
       return;
     }
 
@@ -129,6 +142,9 @@ class WebSocketService {
         return;
       }
 
+      // Mark this vote as processed
+      this.processedVotes.add(`${voteData.studentName}_current_poll`);
+
       // Submit the vote through Redux
       store.dispatch(submitVote(voteData));
       
@@ -148,7 +164,7 @@ class WebSocketService {
         students: finalState.students
       });
       
-      console.log('Vote processed successfully');
+      console.log('Vote processed successfully for:', voteData.studentName);
       
       // Check if all students have voted (with small delay)
       setTimeout(() => {
@@ -157,6 +173,8 @@ class WebSocketService {
       
     } catch (error) {
       console.error('Error processing vote:', error);
+      // Remove from processed votes if there was an error
+      this.processedVotes.delete(`${voteData.studentName}_current_poll`);
     } finally {
       this.isProcessingVote = false;
     }
@@ -246,7 +264,12 @@ class WebSocketService {
     if (!this.listeners[event]) {
       this.listeners[event] = [];
     }
-    this.listeners[event].push(callback);
+    
+    // Check if this callback is already registered for this event
+    const isAlreadyRegistered = this.listeners[event].some(cb => cb === callback);
+    if (!isAlreadyRegistered) {
+      this.listeners[event].push(callback);
+    }
   }
 
   off(event: string, callback: Function) {
@@ -278,6 +301,9 @@ class WebSocketService {
   }
 
   private startTimer(maxTime: number) {
+    // Clear any existing timer first
+    this.stopTimer();
+    
     if (maxTime <= 0) return;
     
     console.log('Starting timer for', maxTime, 'seconds');
@@ -303,6 +329,7 @@ class WebSocketService {
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
+      console.log('Timer stopped');
     }
   }
 
