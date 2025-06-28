@@ -1,5 +1,6 @@
 import { store } from '../store';
 import { addPendingStudent, approveStudent, rejectStudent, submitVote, updatePollVotes, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, clearPoll } from '../store/pollSlice';
+import { calculateFromVoteCounts, recalculateVoteCounts, checkAllStudentsVoted, getStudentVotesArray } from '../utils/pollCalculations';
 
 interface ChatMessage {
   id: string;
@@ -65,32 +66,15 @@ class WebSocketService {
         
       case 'submitVote':
         console.log('Processing vote:', data);
-        
-        // Submit vote to store
-        store.dispatch(submitVote(data));
-        
-        // Get updated state
-        const updatedState = store.getState().poll;
-        
-        // Save updated poll and students
-        this.saveToStorage('currentPoll', updatedState.currentPoll);
-        this.saveToStorage('students', updatedState.students);
-        
-        // Broadcast the updated vote counts to all clients
-        this.broadcast('voteUpdate', {
-          pollId: updatedState.currentPoll?.id,
-          votes: updatedState.currentPoll?.votes,
-          students: updatedState.students
-        });
-        
-        // Check if all students have voted
-        this.checkAllVoted();
+        this.handleVoteSubmission(data);
         break;
         
       case 'removeStudent':
         store.dispatch(removeStudent(data.studentName));
         this.broadcast('studentRemoved', { name: data.studentName });
         this.saveToStorage('students', store.getState().poll.students);
+        // Recalculate votes after removing student
+        this.recalculateAndSyncVotes();
         break;
         
       case 'clearPoll':
@@ -112,6 +96,85 @@ class WebSocketService {
         this.broadcast('newMessage', message);
         this.saveToStorage('chatMessages', this.chatMessages);
         break;
+    }
+  }
+
+  private handleVoteSubmission(voteData: { studentName: string; option: string }) {
+    const currentState = store.getState().poll;
+    
+    if (!currentState.currentPoll || !currentState.currentPoll.isActive) {
+      console.log('Cannot submit vote: Poll is not active');
+      return;
+    }
+
+    const student = currentState.students.find(s => s.name === voteData.studentName);
+    if (!student) {
+      console.log('Cannot submit vote: Student not found');
+      return;
+    }
+
+    if (student.hasAnswered) {
+      console.log('Cannot submit vote: Student already voted');
+      return;
+    }
+
+    // Submit the vote through Redux
+    store.dispatch(submitVote(voteData));
+    
+    // Get updated state and recalculate votes to ensure accuracy
+    const updatedState = store.getState().poll;
+    this.recalculateAndSyncVotes();
+    
+    // Get final state after recalculation
+    const finalState = store.getState().poll;
+    
+    // Broadcast the updated vote information
+    this.broadcast('voteUpdate', {
+      pollId: finalState.currentPoll?.id,
+      votes: finalState.currentPoll?.votes,
+      students: finalState.students
+    });
+    
+    console.log('Vote processed successfully');
+    
+    // Check if all students have voted
+    this.checkVotingCompletion();
+  }
+
+  private recalculateAndSyncVotes() {
+    const state = store.getState().poll;
+    
+    if (!state.currentPoll) return;
+
+    // Recalculate vote counts from actual student data
+    const correctVoteCounts = recalculateVoteCounts(
+      state.currentPoll.options,
+      state.students
+    );
+
+    // Update Redux with correct vote counts
+    store.dispatch(updatePollVotes({ votes: correctVoteCounts }));
+    
+    // Save to storage
+    const updatedState = store.getState().poll;
+    this.saveToStorage('currentPoll', updatedState.currentPoll);
+    this.saveToStorage('students', updatedState.students);
+    
+    console.log('Vote counts recalculated:', correctVoteCounts);
+  }
+
+  private checkVotingCompletion() {
+    const state = store.getState().poll;
+    const totalStudents = state.students.length;
+    const votedStudents = state.students.filter(s => s.hasAnswered).length;
+    
+    console.log(`Voting progress: ${votedStudents}/${totalStudents} students voted`);
+    
+    if (checkAllStudentsVoted(totalStudents, votedStudents)) {
+      console.log('All students voted, ending poll in 2 seconds');
+      setTimeout(() => {
+        this.endPoll();
+      }, 2000);
     }
   }
 
@@ -169,25 +232,14 @@ class WebSocketService {
 
   private endPoll() {
     this.stopTimer();
+    
+    // Final vote recalculation before ending
+    this.recalculateAndSyncVotes();
+    
     store.dispatch(endPoll());
     this.saveToStorage('showResults', true);
     this.saveToStorage('timeRemaining', 0);
     this.broadcast('pollEnded', {});
-  }
-
-  private checkAllVoted() {
-    const state = store.getState().poll;
-    const totalStudents = state.students.length;
-    const votedStudents = state.students.filter(s => s.hasAnswered).length;
-    
-    console.log(`Vote check: ${votedStudents}/${totalStudents} students voted`);
-    
-    if (totalStudents > 0 && votedStudents === totalStudents) {
-      console.log('All students voted, ending poll early');
-      setTimeout(() => {
-        this.endPoll();
-      }, 1000);
-    }
   }
 
   private saveToStorage(key: string, data: any) {
