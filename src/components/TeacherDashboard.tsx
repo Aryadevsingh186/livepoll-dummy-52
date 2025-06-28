@@ -12,18 +12,23 @@ import { Button } from '@/components/ui/button';
 import { Clock } from 'lucide-react';
 
 const TeacherDashboard: React.FC = () => {
-  const { currentPoll, timeRemaining, pendingStudents, students } = useSelector((state: RootState) => state.poll);
+  const { currentPoll, timeRemaining, pendingStudents, showResults } = useSelector((state: RootState) => state.poll);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'participants'>('participants');
   const { emit, on } = useWebSocket();
 
   useEffect(() => {
-    console.log('TeacherDashboard - Pending students changed:', pendingStudents);
+    if (pendingStudents.length > 0) {
+      setActiveTab('participants');
+    }
   }, [pendingStudents]);
 
   on('studentJoinRequest', (data: { name: string }) => {
-    console.log('TeacherDashboard - Student join request received:', data.name);
     setActiveTab('participants');
+  });
+
+  on('pollCleared', () => {
+    setShowCreatePoll(false);
   });
 
   const handleCreateNewQuestion = () => {
@@ -51,7 +56,7 @@ const TeacherDashboard: React.FC = () => {
                 </div>
                 <h1 className="text-4xl font-bold text-gray-900 mb-4">Let's Get Started</h1>
                 <p className="text-lg text-gray-600 mb-8">
-                  You'll have the ability to create and manage polls, ask questions, and monitor
+                  Create and manage polls, ask questions, and monitor
                   <br />
                   your students' responses in real-time.
                 </p>
@@ -74,22 +79,25 @@ const TeacherDashboard: React.FC = () => {
                 <div className="flex justify-between items-center mb-6">
                   <div className="flex items-center space-x-4">
                     <h2 className="text-xl font-semibold text-gray-900">Current Question</h2>
-                    {currentPoll.isActive && (
+                    {currentPoll.isActive && timeRemaining > 0 && (
                       <div className="flex items-center text-red-600 font-medium">
                         <Clock className="w-4 h-4 mr-1" />
                         {Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:
                         {(timeRemaining % 60).toString().padStart(2, '0')}
                       </div>
                     )}
+                    {!currentPoll.isActive && (
+                      <div className="text-green-600 font-medium">Poll Ended</div>
+                    )}
                   </div>
-                  <div className="flex space-x-2">
+                  {showResults && (
                     <Button
                       onClick={handleCreateNewQuestion}
                       className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full"
                     >
-                      + Ask a new question
+                      + Ask New Question
                     </Button>
-                  </div>
+                  )}
                 </div>
                 
                 <PollResults />

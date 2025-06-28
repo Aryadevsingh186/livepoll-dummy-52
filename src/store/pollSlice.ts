@@ -16,6 +16,7 @@ export interface Student {
   name: string;
   hasAnswered: boolean;
   isApproved: boolean;
+  selectedOption?: string; // Track what they voted for
 }
 
 export interface PendingStudent {
@@ -53,7 +54,6 @@ const pollSlice = createSlice({
     setRole: (state, action: PayloadAction<'teacher' | 'student'>) => {
       state.role = action.payload;
       if (action.payload === 'teacher') {
-        // Reset everything for teacher role
         state.currentPoll = null;
         state.students = [];
         state.pendingStudents = [];
@@ -98,7 +98,7 @@ const pollSlice = createSlice({
       }
     },
     createPoll: (state, action: PayloadAction<{ question: string; options: string[]; maxTime: number }>) => {
-      // Clear any existing poll completely - no history
+      // Create completely new poll - no history
       const newPoll: Poll = {
         id: Date.now().toString(),
         question: action.payload.question,
@@ -109,38 +109,28 @@ const pollSlice = createSlice({
         maxTime: action.payload.maxTime,
       };
       
-      console.log('Creating new poll in reducer:', newPoll);
       state.currentPoll = newPoll;
-      // Reset all students' answered status for new poll
-      state.students = state.students.map(s => ({ ...s, hasAnswered: false }));
+      // Reset all students for new poll
+      state.students = state.students.map(s => ({ 
+        ...s, 
+        hasAnswered: false,
+        selectedOption: undefined 
+      }));
       state.timeRemaining = action.payload.maxTime;
       state.showResults = false;
-      console.log('Poll created, students reset:', state.students);
     },
     submitVote: (state, action: PayloadAction<{ studentName: string; option: string }>) => {
-      console.log('submitVote reducer called with:', action.payload);
-      console.log('Current poll:', state.currentPoll);
-      console.log('Current students:', state.students);
-      
       if (state.currentPoll && state.currentPoll.isActive) {
         const student = state.students.find(s => s.name === action.payload.studentName);
-        console.log('Found student:', student);
         
         if (student && !student.hasAnswered) {
-          console.log('Recording vote for option:', action.payload.option);
-          console.log('Current votes before:', state.currentPoll.votes);
+          // Record the vote
+          state.currentPoll.votes[action.payload.option] = (state.currentPoll.votes[action.payload.option] || 0) + 1;
           
-          // Increment the vote count
-          state.currentPoll.votes[action.payload.option]++;
+          // Mark student as answered and record their choice
           student.hasAnswered = true;
-          
-          console.log('Current votes after:', state.currentPoll.votes);
-          console.log('Student marked as answered:', student);
-        } else {
-          console.log('Vote not recorded - student already answered or not found');
+          student.selectedOption = action.payload.option;
         }
-      } else {
-        console.log('Vote not recorded - poll not active or not found');
       }
     },
     setTimeRemaining: (state, action: PayloadAction<number>) => {
@@ -150,6 +140,7 @@ const pollSlice = createSlice({
       if (state.currentPoll) {
         state.currentPoll.isActive = false;
         state.showResults = true;
+        state.timeRemaining = 0;
       }
     },
     setShowResults: (state, action: PayloadAction<boolean>) => {
@@ -161,10 +152,13 @@ const pollSlice = createSlice({
         state.kickedStudents.push(action.payload);
       }
     },
-    // Remove poll completely - no history
-    removePoll: (state) => {
+    clearPoll: (state) => {
       state.currentPoll = null;
-      state.students = state.students.map(s => ({ ...s, hasAnswered: false }));
+      state.students = state.students.map(s => ({ 
+        ...s, 
+        hasAnswered: false,
+        selectedOption: undefined 
+      }));
       state.timeRemaining = 0;
       state.showResults = false;
     },
@@ -190,7 +184,7 @@ export const {
   endPoll,
   setShowResults,
   removeStudent,
-  removePoll,
+  clearPoll,
   leavePoll,
   clearAllData,
 } = pollSlice.actions;

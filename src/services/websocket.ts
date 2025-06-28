@@ -1,6 +1,6 @@
 
 import { store } from '../store';
-import { addPendingStudent, approveStudent, rejectStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, removePoll } from '../store/pollSlice';
+import { addPendingStudent, approveStudent, rejectStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, clearPoll } from '../store/pollSlice';
 
 interface ChatMessage {
   id: string;
@@ -25,7 +25,6 @@ class WebSocketService {
     
     switch (event) {
       case 'requestJoin':
-        console.log('Student requesting to join:', data.name);
         const state = store.getState().poll;
         const existingApproved = state.students.find(s => s.name === data.name);
         const existingPending = state.pendingStudents.find(s => s.name === data.name);
@@ -36,80 +35,75 @@ class WebSocketService {
           this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
         }
         break;
+        
       case 'approveStudent':
-        console.log('Approving student:', data.studentName);
         store.dispatch(approveStudent(data.studentName));
         this.broadcast('studentApproved', { name: data.studentName });
         this.saveToStorage('students', store.getState().poll.students);
         this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
         break;
+        
       case 'rejectStudent':
-        console.log('Rejecting student:', data.studentName);
         store.dispatch(rejectStudent(data.studentName));
         this.broadcast('studentRejected', { name: data.studentName });
         this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
         break;
-      case 'createPoll':
-        console.log('Creating new poll:', data);
-        // End any existing timer first
-        if (this.pollTimer) {
-          clearInterval(this.pollTimer);
-          this.pollTimer = null;
-        }
         
-        // Create the new poll
+      case 'createPoll':
+        // Stop any existing timer
+        this.stopTimer();
+        
+        // Create new poll
         store.dispatch(createPoll(data));
-        store.dispatch(setShowResults(false));
         
         // Save to storage
-        const newPollState = store.getState().poll;
-        this.saveToStorage('currentPoll', newPollState.currentPoll);
-        this.saveToStorage('pollActive', true);
+        const newState = store.getState().poll;
+        this.saveToStorage('currentPoll', newState.currentPoll);
+        this.saveToStorage('students', newState.students);
+        this.saveToStorage('timeRemaining', data.maxTime);
         this.saveToStorage('showResults', false);
-        this.saveToStorage('students', newPollState.students); // Save updated students with hasAnswered reset
         
-        // Broadcast to all clients
-        this.broadcast('newPoll', newPollState.currentPoll);
+        // Broadcast to all
+        this.broadcast('newPoll', newState.currentPoll);
         
-        // Start the timer
-        this.startPollTimer(data.maxTime);
+        // Start timer
+        this.startTimer(data.maxTime);
         break;
-      case 'submitVote':
-        console.log('Vote submitted:', data);
-        const currentState = store.getState().poll;
-        console.log('Current poll state before vote:', currentState.currentPoll);
-        console.log('Students before vote:', currentState.students);
         
-        // Dispatch the vote
+      case 'submitVote':
+        console.log('Processing vote:', data);
+        
+        // Submit vote to store
         store.dispatch(submitVote(data));
         
-        // Get updated state
+        // Get updated state and save
         const updatedState = store.getState().poll;
-        console.log('Updated poll state after vote:', updatedState.currentPoll);
-        console.log('Students after vote:', updatedState.students);
-        
-        // Save updated votes and students to storage
-        this.saveToStorage('pollVotes', updatedState.currentPoll?.votes);
+        this.saveToStorage('currentPoll', updatedState.currentPoll);
         this.saveToStorage('students', updatedState.students);
         
-        // Broadcast the vote update
-        this.broadcast('voteSubmitted', data);
+        // Broadcast vote update
+        this.broadcast('voteUpdate', {
+          votes: updatedState.currentPoll?.votes,
+          students: updatedState.students
+        });
         
-        // Check if all students have answered
-        this.checkIfAllAnswered();
+        // Check if all voted
+        this.checkAllVoted();
         break;
+        
       case 'removeStudent':
         store.dispatch(removeStudent(data.studentName));
         this.broadcast('studentRemoved', { name: data.studentName });
         this.saveToStorage('students', store.getState().poll.students);
         break;
-      case 'removePoll':
-        this.endPollTimer();
-        store.dispatch(removePoll());
-        this.broadcast('pollRemoved', {});
-        this.saveToStorage('currentPoll', null);
-        this.saveToStorage('pollActive', false);
+        
+      case 'clearPoll':
+        this.stopTimer();
+        store.dispatch(clearPoll());
+        this.broadcast('pollCleared', {});
+        this.clearPollStorage();
         break;
+        
       case 'sendMessage':
         const message: ChatMessage = {
           id: Date.now().toString(),
@@ -150,11 +144,61 @@ class WebSocketService {
     this.saveToStorage(`event_${event}`, { data, timestamp: Date.now() });
   }
 
+  private startTimer(maxTime: number) {
+    console.log('Starting timer for', maxTime, 'seconds');
+    let timeLeft = maxTime;
+    
+    store.dispatch(setTimeRemaining(timeLeft));
+    this.saveToStorage('timeRemaining', timeLeft);
+    
+    this.pollTimer = setInterval(() => {
+      timeLeft -= 1;
+      store.dispatch(setTimeRemaining(timeLeft));
+      this.saveToStorage('timeRemaining', timeLeft);
+      this.broadcast('timeUpdate', { timeRemaining: timeLeft });
+
+      if (timeLeft <= 0) {
+        console.log('Timer ended, showing results');
+        this.endPoll();
+      }
+    }, 1000);
+  }
+
+  private stopTimer() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  private endPoll() {
+    this.stopTimer();
+    store.dispatch(endPoll());
+    this.saveToStorage('showResults', true);
+    this.saveToStorage('timeRemaining', 0);
+    this.broadcast('pollEnded', {});
+  }
+
+  private checkAllVoted() {
+    const state = store.getState().poll;
+    const totalStudents = state.students.length;
+    const votedStudents = state.students.filter(s => s.hasAnswered).length;
+    
+    console.log(`Vote check: ${votedStudents}/${totalStudents} students voted`);
+    
+    if (totalStudents > 0 && votedStudents === totalStudents) {
+      console.log('All students voted, ending poll early');
+      setTimeout(() => {
+        this.endPoll();
+      }, 1000);
+    }
+  }
+
   private saveToStorage(key: string, data: any) {
     try {
       localStorage.setItem(`poll_${key}`, JSON.stringify(data));
     } catch (error) {
-      console.error('Failed to save to storage:', error);
+      console.error('Storage save error:', error);
     }
   }
 
@@ -163,9 +207,16 @@ class WebSocketService {
       const item = localStorage.getItem(`poll_${key}`);
       return item ? JSON.parse(item) : null;
     } catch (error) {
-      console.error('Failed to get from storage:', error);
+      console.error('Storage get error:', error);
       return null;
     }
+  }
+
+  private clearPollStorage() {
+    const keys = ['currentPoll', 'timeRemaining', 'showResults'];
+    keys.forEach(key => {
+      localStorage.removeItem(`poll_${key}`);
+    });
   }
 
   private handleStorageChange(event: StorageEvent) {
@@ -189,8 +240,8 @@ class WebSocketService {
     const students = this.getFromStorage('students');
     const pendingStudents = this.getFromStorage('pendingStudents');
     const currentPoll = this.getFromStorage('currentPoll');
-    const pollActive = this.getFromStorage('pollActive');
     const timeRemaining = this.getFromStorage('timeRemaining');
+    const showResults = this.getFromStorage('showResults');
     const chatMessages = this.getFromStorage('chatMessages');
 
     if (chatMessages) {
@@ -209,71 +260,16 @@ class WebSocketService {
       });
     }
 
-    if (currentPoll && pollActive) {
+    if (currentPoll) {
       store.dispatch(createPoll(currentPoll));
-      if (timeRemaining !== null) {
+      if (timeRemaining !== null && timeRemaining > 0) {
         store.dispatch(setTimeRemaining(timeRemaining));
-        if (timeRemaining > 0) {
-          this.startPollTimer(timeRemaining);
-        }
+        this.startTimer(timeRemaining);
       }
-    }
-  }
-
-  private startPollTimer(maxTime: number) {
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-    }
-
-    let timeLeft = maxTime;
-    store.dispatch(setTimeRemaining(timeLeft));
-    this.saveToStorage('timeRemaining', timeLeft);
-    
-    this.pollTimer = setInterval(() => {
-      timeLeft -= 1;
-      console.log(`Timer: ${timeLeft} seconds remaining`);
-      store.dispatch(setTimeRemaining(timeLeft));
-      this.saveToStorage('timeRemaining', timeLeft);
-      this.broadcast('timeUpdate', { timeRemaining: timeLeft });
-
-      if (timeLeft <= 0) {
-        console.log('Timer ended - showing results');
-        this.endPollTimer();
-      }
-    }, 1000);
-  }
-
-  private checkIfAllAnswered() {
-    const state = store.getState().poll;
-    const allAnswered = state.students.every(s => s.hasAnswered);
-    console.log('Checking if all answered:', { 
-      students: state.students, 
-      allAnswered, 
-      studentsCount: state.students.length 
-    });
-    
-    if (allAnswered && state.students.length > 0) {
-      console.log('All students answered - showing results');
-      setTimeout(() => {
+      if (showResults) {
         store.dispatch(setShowResults(true));
-        this.broadcast('showResults', {});
-        this.saveToStorage('showResults', true);
-      }, 1000);
+      }
     }
-  }
-
-  private endPollTimer() {
-    if (this.pollTimer) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
-    }
-    console.log('Poll ended - setting results to show');
-    store.dispatch(endPoll());
-    store.dispatch(setShowResults(true));
-    this.saveToStorage('pollActive', false);
-    this.saveToStorage('showResults', true);
-    this.broadcast('pollEnded', {});
-    this.broadcast('showResults', {});
   }
 }
 

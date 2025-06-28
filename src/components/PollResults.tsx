@@ -2,14 +2,22 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { Button } from '@/components/ui/button';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const PollResults: React.FC = () => {
-  const { currentPoll, students } = useSelector((state: RootState) => state.poll);
+  const { currentPoll, students, role } = useSelector((state: RootState) => state.poll);
+  const { emit } = useWebSocket();
 
   if (!currentPoll) return null;
 
+  // Calculate total votes from the poll votes object
   const totalVotes = Object.values(currentPoll.votes).reduce((sum, votes) => sum + votes, 0);
   const totalStudents = students.length;
+
+  const handleCreateNewPoll = () => {
+    emit('clearPoll', {});
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -22,7 +30,6 @@ const PollResults: React.FC = () => {
       <div className="space-y-4 mb-8">
         {currentPoll.options.map((option, index) => {
           const votes = currentPoll.votes[option] || 0;
-          // Calculate percentage based on total votes (not total students)
           const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
           
           return (
@@ -46,7 +53,7 @@ const PollResults: React.FC = () => {
                   />
                 </div>
                 <div className="text-sm text-gray-500 mt-2">
-                  {votes} votes ({percentage}%)
+                  {votes} vote{votes !== 1 ? 's' : ''} ({percentage}%)
                 </div>
               </div>
             </div>
@@ -54,20 +61,23 @@ const PollResults: React.FC = () => {
         })}
       </div>
 
-      {/* Final Results Message */}
-      {!currentPoll.isActive && (
-        <div className="text-center bg-green-50 border border-green-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-green-800 mb-2">Poll Results</h3>
-          <p className="text-green-700">
-            Total votes: {totalVotes} from {totalStudents} students
-          </p>
-        </div>
-      )}
+      {/* Results Summary */}
+      <div className="text-center bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-semibold text-green-800 mb-2">Poll Results</h3>
+        <p className="text-green-700">
+          Total votes: {totalVotes} from {totalStudents} student{totalStudents !== 1 ? 's' : ''}
+        </p>
+      </div>
 
-      {/* Wait Message for Active Polls */}
-      {currentPoll.isActive && (
+      {/* New Poll Button for Teacher */}
+      {role === 'teacher' && (
         <div className="text-center">
-          <p className="text-gray-600 text-lg mb-6">Wait for the teacher to end the poll to see final results...</p>
+          <Button
+            onClick={handleCreateNewPoll}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg rounded-full"
+          >
+            Create New Poll
+          </Button>
         </div>
       )}
     </div>
