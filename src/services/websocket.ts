@@ -2,9 +2,18 @@
 import { store } from '../store';
 import { addPendingStudent, approveStudent, rejectStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, removePoll } from '../store/pollSlice';
 
+interface ChatMessage {
+  id: string;
+  user: string;
+  message: string;
+  timestamp: Date;
+  isTeacher?: boolean;
+}
+
 class WebSocketService {
   private listeners: { [event: string]: Function[] } = {};
   private pollTimer: NodeJS.Timeout | null = null;
+  private chatMessages: ChatMessage[] = [];
 
   constructor() {
     // Clear localStorage on teacher start
@@ -25,17 +34,20 @@ class WebSocketService {
     
     switch (event) {
       case 'requestJoin':
+        console.log('Student requesting to join:', data.name);
         store.dispatch(addPendingStudent(data.name));
         this.broadcast('studentJoinRequest', { name: data.name });
         this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
         break;
       case 'approveStudent':
+        console.log('Approving student:', data.studentName);
         store.dispatch(approveStudent(data.studentName));
         this.broadcast('studentApproved', { name: data.studentName });
         this.saveToStorage('students', store.getState().poll.students);
         this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
         break;
       case 'rejectStudent':
+        console.log('Rejecting student:', data.studentName);
         store.dispatch(rejectStudent(data.studentName));
         this.broadcast('studentRejected', { name: data.studentName });
         this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
@@ -66,6 +78,18 @@ class WebSocketService {
         this.saveToStorage('currentPoll', null);
         this.saveToStorage('pollActive', false);
         break;
+      case 'sendMessage':
+        const message: ChatMessage = {
+          id: Date.now().toString(),
+          user: data.user,
+          message: data.message,
+          timestamp: new Date(),
+          isTeacher: data.isTeacher
+        };
+        this.chatMessages.push(message);
+        this.broadcast('newMessage', message);
+        this.saveToStorage('chatMessages', this.chatMessages);
+        break;
     }
   }
 
@@ -82,7 +106,12 @@ class WebSocketService {
     }
   }
 
+  getChatMessages(): ChatMessage[] {
+    return this.chatMessages;
+  }
+
   private broadcast(event: string, data: any) {
+    console.log(`Broadcasting ${event}:`, data);
     if (this.listeners[event]) {
       this.listeners[event].forEach(callback => callback(data));
     }
@@ -132,6 +161,11 @@ class WebSocketService {
     const currentPoll = this.getFromStorage('currentPoll');
     const pollActive = this.getFromStorage('pollActive');
     const timeRemaining = this.getFromStorage('timeRemaining');
+    const chatMessages = this.getFromStorage('chatMessages');
+
+    if (chatMessages) {
+      this.chatMessages = chatMessages;
+    }
 
     if (pendingStudents) {
       pendingStudents.forEach((student: any) => {

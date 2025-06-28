@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -15,7 +15,17 @@ const TeacherDashboard: React.FC = () => {
   const { currentPoll, timeRemaining, pendingStudents } = useSelector((state: RootState) => state.poll);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'participants'>('participants');
-  const { emit } = useWebSocket();
+  const { emit, on } = useWebSocket();
+
+  useEffect(() => {
+    console.log('TeacherDashboard - Pending students changed:', pendingStudents);
+  }, [pendingStudents]);
+
+  on('studentJoinRequest', (data: { name: string }) => {
+    console.log('TeacherDashboard - Student join request received:', data.name);
+    // Automatically switch to participants tab when a new request comes in
+    setActiveTab('participants');
+  });
 
   const handleCreateNewQuestion = () => {
     setShowCreatePoll(true);
@@ -34,9 +44,9 @@ const TeacherDashboard: React.FC = () => {
         <div className="flex-1 flex flex-col">
           {!currentPoll ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6">
-              {/* Student Approval Section */}
+              {/* Student Approval Section - Always show at top when there are pending students */}
               {pendingStudents.length > 0 && (
-                <div className="w-full max-w-2xl mb-8">
+                <div className="w-full max-w-4xl mb-8">
                   <StudentApproval />
                 </div>
               )}
@@ -118,7 +128,7 @@ const TeacherDashboard: React.FC = () => {
             >
               Participants
               {pendingStudents.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
                   {pendingStudents.length}
                 </span>
               )}

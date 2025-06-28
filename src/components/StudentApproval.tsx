@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { approveStudent, rejectStudent } from '../store/pollSlice';
@@ -11,19 +11,33 @@ import { UserCheck, UserX, Clock } from 'lucide-react';
 const StudentApproval: React.FC = () => {
   const dispatch = useDispatch();
   const { pendingStudents } = useSelector((state: RootState) => state.poll);
-  const { emit } = useWebSocket();
+  const { emit, on } = useWebSocket();
+
+  useEffect(() => {
+    console.log('StudentApproval - Pending students:', pendingStudents);
+  }, [pendingStudents]);
+
+  on('studentJoinRequest', (data: { name: string }) => {
+    console.log('StudentApproval - Received join request:', data.name);
+    // The request is already handled by the websocket service
+  });
 
   const handleApprove = (studentName: string) => {
-    dispatch(approveStudent(studentName));
+    console.log('Approving student:', studentName);
     emit('approveStudent', { studentName });
   };
 
   const handleReject = (studentName: string) => {
-    dispatch(rejectStudent(studentName));
+    console.log('Rejecting student:', studentName);
     emit('rejectStudent', { studentName });
   };
 
-  if (pendingStudents.length === 0) return null;
+  if (pendingStudents.length === 0) {
+    console.log('No pending students to show');
+    return null;
+  }
+
+  console.log('Rendering StudentApproval with', pendingStudents.length, 'pending students');
 
   return (
     <Card className="mb-6 bg-yellow-50 border-yellow-200">
@@ -36,8 +50,16 @@ const StudentApproval: React.FC = () => {
       <CardContent>
         <div className="space-y-3">
           {pendingStudents.map((student) => (
-            <div key={student.id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
-              <span className="font-medium text-gray-900">{student.name}</span>
+            <div key={student.id} className="flex items-center justify-between bg-white p-4 rounded-lg border shadow-sm">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-medium">
+                  {student.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <span className="font-medium text-gray-900">{student.name}</span>
+                  <p className="text-sm text-gray-500">wants to join the poll</p>
+                </div>
+              </div>
               <div className="flex space-x-2">
                 <Button
                   onClick={() => handleApprove(student.name)}

@@ -16,6 +16,7 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
   const [maxTime, setMaxTime] = useState(60);
+  const [correctAnswers, setCorrectAnswers] = useState<{ [key: number]: 'yes' | 'no' | null }>({});
   const { emit } = useWebSocket();
 
   const addOption = () => {
@@ -27,6 +28,9 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
   const removeOption = (index: number) => {
     if (options.length > 2) {
       setOptions(options.filter((_, i) => i !== index));
+      const newCorrectAnswers = { ...correctAnswers };
+      delete newCorrectAnswers[index];
+      setCorrectAnswers(newCorrectAnswers);
     }
   };
 
@@ -34,6 +38,13 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
     const newOptions = [...options];
     newOptions[index] = value;
     setOptions(newOptions);
+  };
+
+  const setCorrectAnswer = (index: number, value: 'yes' | 'no') => {
+    setCorrectAnswers(prev => ({
+      ...prev,
+      [index]: value
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -47,43 +58,65 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
       question: question.trim(),
       options: options.filter(opt => opt.trim()),
       maxTime,
+      correctAnswers,
     });
 
     onClose();
   };
 
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm max-w-2xl mx-auto">
+    <Card className="bg-white border border-gray-200 shadow-sm max-w-4xl mx-auto">
       <CardContent className="p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900">Enter your question</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Enter your question</h2>
           </div>
 
-          <div className="space-y-2">
-            <Input
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Rahul Bajaj"
-              className="w-full text-center text-lg py-3 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
-              required
-            />
-            <div className="text-right text-sm text-gray-500">0/100</div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex-1 mr-4">
+              <Input
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Enter your question here..."
+                className="w-full text-lg py-4 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                required
+              />
+              <div className="text-right text-sm text-gray-500 mt-1">
+                {question.length}/100
+              </div>
+            </div>
+            
+            <div className="w-32">
+              <Select value={maxTime.toString()} onValueChange={(value) => setMaxTime(parseInt(value))}>
+                <SelectTrigger className="border-gray-300 focus:border-purple-500 focus:ring-purple-500">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 seconds</SelectItem>
+                  <SelectItem value="60">60 seconds</SelectItem>
+                  <SelectItem value="90">90 seconds</SelectItem>
+                  <SelectItem value="120">2 minutes</SelectItem>
+                  <SelectItem value="180">3 minutes</SelectItem>
+                  <SelectItem value="300">5 minutes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <Label className="text-gray-700 font-medium">Edit Options</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                {options.slice(0, Math.ceil(options.length / 2)).map((option, index) => (
-                  <div key={index} className="flex items-center space-x-2 mb-3">
-                    <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-medium">
+          <div className="grid grid-cols-2 gap-8">
+            {/* Left Column - Edit Options */}
+            <div className="space-y-4">
+              <Label className="text-gray-700 font-medium text-lg">Edit Options</Label>
+              <div className="space-y-3">
+                {options.map((option, index) => (
+                  <div key={index} className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-medium text-sm">
                       {index + 1}
                     </div>
                     <Input
                       value={option}
                       onChange={(e) => updateOption(index, e.target.value)}
-                      placeholder="Rahul Bajaj"
+                      placeholder="Enter option text..."
                       className="flex-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                       required
                     />
@@ -100,85 +133,59 @@ const CreatePoll: React.FC<CreatePollProps> = ({ onClose }) => {
                     )}
                   </div>
                 ))}
+                
+                {options.length < 6 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addOption}
+                    className="w-full border-purple-300 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add More option
+                  </Button>
+                )}
               </div>
-              
-              <div>
-                <div className="mb-6">
-                  <Label className="text-gray-700 font-medium mb-2 block">Is it Correct?</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <input type="radio" name="correct1" value="yes" className="text-purple-600" />
-                      <label className="text-gray-700">Yes</label>
-                      <input type="radio" name="correct1" value="no" className="text-purple-600 ml-4" />
-                      <label className="text-gray-700">No</label>
+            </div>
+
+            {/* Right Column - Is it Correct? */}
+            <div className="space-y-4">
+              <Label className="text-gray-700 font-medium text-lg">Is it Correct?</Label>
+              <div className="space-y-6">
+                {options.map((option, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="text-sm text-gray-600 font-medium">Option {index + 1}</div>
+                    <div className="flex items-center space-x-6">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`correct-${index}`}
+                          value="yes"
+                          checked={correctAnswers[index] === 'yes'}
+                          onChange={() => setCorrectAnswer(index, 'yes')}
+                          className="text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-gray-700">Yes</span>
+                      </label>
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`correct-${index}`}
+                          value="no"
+                          checked={correctAnswers[index] === 'no'}
+                          onChange={() => setCorrectAnswer(index, 'no')}
+                          className="text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-gray-700">No</span>
+                      </label>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <input type="radio" name="correct2" value="yes" className="text-purple-600" />
-                      <label className="text-gray-700">Yes</label>
-                      <input type="radio" name="correct2" value="no" className="text-purple-600 ml-4" />
-                      <label className="text-gray-700">No</label>
-                    </div>
-                  </div>
-                </div>
-                {options.slice(Math.ceil(options.length / 2)).map((option, index) => (
-                  <div key={index + Math.ceil(options.length / 2)} className="flex items-center space-x-2 mb-3">
-                    <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-medium">
-                      {index + Math.ceil(options.length / 2) + 1}
-                    </div>
-                    <Input
-                      value={option}
-                      onChange={(e) => updateOption(index + Math.ceil(options.length / 2), e.target.value)}
-                      placeholder="Rahul Bajaj"
-                      className="flex-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
-                      required
-                    />
-                    {options.length > 2 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeOption(index + Math.ceil(options.length / 2))}
-                        className="border-red-300 text-red-600 hover:bg-red-50"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </Button>
-                    )}
                   </div>
                 ))}
               </div>
             </div>
-            
-            {options.length < 6 && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addOption}
-                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add More option
-              </Button>
-            )}
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-gray-700 font-medium">Time Limit</Label>
-            <Select value={maxTime.toString()} onValueChange={(value) => setMaxTime(parseInt(value))}>
-              <SelectTrigger className="w-full border-gray-300 focus:border-purple-500 focus:ring-purple-500">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="30">30 seconds</SelectItem>
-                <SelectItem value="60">60 seconds</SelectItem>
-                <SelectItem value="90">90 seconds</SelectItem>
-                <SelectItem value="120">2 minutes</SelectItem>
-                <SelectItem value="180">3 minutes</SelectItem>
-                <SelectItem value="300">5 minutes</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="text-center">
+          <div className="text-center pt-6">
             <Button
               type="submit"
               className="bg-purple-600 hover:bg-purple-700 text-white px-12 py-3 text-lg rounded-full"

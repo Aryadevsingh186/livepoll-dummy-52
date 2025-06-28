@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send } from 'lucide-react';
+import { wsService } from '../services/websocket';
 
 interface ChatMessage {
   id: string;
@@ -16,36 +18,51 @@ interface ChatMessage {
 
 const ChatPanel: React.FC = () => {
   const { role, studentName } = useSelector((state: RootState) => state.poll);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      user: 'User1',
-      message: 'Hey There , how can I help?',
-      timestamp: new Date(),
-    },
-    {
-      id: '2',
-      user: 'User2',
-      message: 'Nothing bro..just chill!!',
-      timestamp: new Date(),
-    }
-  ]);
+  const { emit, on } = useWebSocket();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Load existing messages
+    const existingMessages = wsService.getChatMessages();
+    setMessages(existingMessages);
+  }, []);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  on('newMessage', (message: ChatMessage) => {
+    setMessages(prev => {
+      const exists = prev.find(m => m.id === message.id);
+      if (exists) return prev;
+      return [...prev, message];
+    });
+  });
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    const message: ChatMessage = {
-      id: Date.now().toString(),
-      user: role === 'teacher' ? 'Teacher' : studentName,
+    const userName = role === 'teacher' ? 'Teacher' : studentName;
+    
+    emit('sendMessage', {
+      user: userName,
       message: newMessage.trim(),
-      timestamp: new Date(),
       isTeacher: role === 'teacher'
-    };
+    });
 
-    setMessages(prev => [...prev, message]);
     setNewMessage('');
+  };
+
+  const formatTime = (timestamp: Date) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -56,20 +73,35 @@ const ChatPanel: React.FC = () => {
       
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-4">
-          {messages.map((message) => (
-            <div key={message.id} className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-blue-600">{message.user}</span>
-              </div>
-              <div className={`p-3 rounded-lg max-w-xs ${
-                message.isTeacher 
-                  ? 'bg-purple-100 text-purple-900 ml-auto' 
-                  : 'bg-gray-100 text-gray-900'
-              }`}>
-                <p className="text-sm">{message.message}</p>
-              </div>
+          {messages.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              <p>Start a conversation!</p>
+              <p className="text-sm mt-1">Send a message to begin chatting</p>
             </div>
-          ))}
+          ) : (
+            messages.map((message) => (
+              <div key={message.id} className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-medium ${
+                    message.isTeacher ? 'text-purple-600' : 'text-blue-600'
+                  }`}>
+                    {message.user}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {formatTime(message.timestamp)}
+                  </span>
+                </div>
+                <div className={`p-3 rounded-lg max-w-xs break-words ${
+                  message.isTeacher 
+                    ? 'bg-purple-100 text-purple-900 ml-auto' 
+                    : 'bg-gray-100 text-gray-900'
+                }`}>
+                  <p className="text-sm">{message.message}</p>
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
         </div>
       </div>
       
@@ -80,15 +112,22 @@ const ChatPanel: React.FC = () => {
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
             className="flex-1 border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+            maxLength={500}
           />
           <Button 
             type="submit" 
             size="sm"
             className="bg-purple-600 hover:bg-purple-700"
+            disabled={!newMessage.trim()}
           >
             <Send className="w-4 h-4" />
           </Button>
         </form>
+        {newMessage.length > 0 && (
+          <div className="text-xs text-gray-500 mt-1 text-right">
+            {newMessage.length}/500
+          </div>
+        )}
       </div>
     </div>
   );
