@@ -102,7 +102,8 @@ const pollSlice = createSlice({
         createdAt: Date.now(),
         maxTime: action.payload.maxTime,
       };
-      if (state.currentPoll) {
+      // Only add current poll to history if it exists and is not already there
+      if (state.currentPoll && !state.pollHistory.find(p => p.id === state.currentPoll!.id)) {
         state.pollHistory.push(state.currentPoll);
       }
       state.currentPoll = newPoll;
@@ -135,7 +136,8 @@ const pollSlice = createSlice({
       state.students = state.students.filter(s => s.name !== action.payload);
     },
     removePoll: (state) => {
-      if (state.currentPoll) {
+      // Only add to history if not already there
+      if (state.currentPoll && !state.pollHistory.find(p => p.id === state.currentPoll!.id)) {
         state.pollHistory.push(state.currentPoll);
       }
       state.currentPoll = null;

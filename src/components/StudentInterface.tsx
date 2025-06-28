@@ -11,7 +11,6 @@ import PollResults from './PollResults';
 import ChatPanel from './ChatPanel';
 import KickedOut from './KickedOut';
 import { Clock } from 'lucide-react';
-import { toast } from 'sonner';
 
 const StudentInterface: React.FC = () => {
   const dispatch = useDispatch();
@@ -47,13 +46,13 @@ const StudentInterface: React.FC = () => {
           setIsApproved(false);
           setIsKicked(false);
         } else {
-          // Request to join again
-          emit('requestJoin', { name: savedName });
-          setIsWaitingApproval(true);
+          // Student might have been kicked or rejected - redirect to kicked out
+          console.log('Student not found in approved or pending lists, redirecting to kicked out');
+          setIsKicked(true);
         }
       }
     }
-  }, [dispatch, emit, students, pendingStudents, currentPoll]);
+  }, [dispatch, students, pendingStudents, currentPoll]);
 
   // Check if student is kicked out
   useEffect(() => {
@@ -62,6 +61,7 @@ const StudentInterface: React.FC = () => {
       if (!student) {
         console.log('Student kicked out, redirecting to kicked out page');
         setIsKicked(true);
+        setIsApproved(false);
       }
     }
   }, [students, studentName, isApproved, hasJoined]);
@@ -92,8 +92,8 @@ const StudentInterface: React.FC = () => {
   on('studentRemoved', (data: { name: string }) => {
     if (data.name === studentName) {
       console.log('Student removed event received for:', data.name);
-      toast.error("You have been removed from the poll by the teacher");
       setIsKicked(true);
+      setIsApproved(false);
     }
   });
 
@@ -108,11 +108,11 @@ const StudentInterface: React.FC = () => {
 
   on('studentRejected', (data: { name: string }) => {
     if (data.name === studentName) {
+      console.log('Student rejected, redirecting to kicked out page');
+      setIsKicked(true);
       setIsWaitingApproval(false);
       setIsApproved(false);
-      setIsKicked(false);
       setHasJoined(false);
-      sessionStorage.removeItem('studentName');
     }
   });
 
@@ -145,7 +145,7 @@ const StudentInterface: React.FC = () => {
     setShowWelcome(false);
   };
 
-  // Show KickedOut component if student is kicked
+  // Show KickedOut component if student is kicked or rejected
   if (isKicked) {
     return <KickedOut onReturnHome={handleReturnHome} />;
   }
@@ -221,7 +221,7 @@ const StudentInterface: React.FC = () => {
                   </div>
                 )}
 
-                {/* Poll History */}
+                {/* Poll History - Show each poll only once */}
                 {pollHistory.length > 0 && (
                   <div className="space-y-6">
                     {pollHistory.map((poll, index) => (
@@ -238,8 +238,8 @@ const StudentInterface: React.FC = () => {
                           <div className="space-y-4">
                             {poll.options.map((option, optIndex) => {
                               const votes = poll.votes[option] || 0;
-                              const totalStudents = students.length;
-                              const percentage = totalStudents > 0 ? Math.round((votes / totalStudents) * 100) : 0;
+                              const totalVotes = Object.values(poll.votes).reduce((sum, v) => sum + v, 0);
+                              const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
                               
                               return (
                                 <div key={option} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -262,7 +262,7 @@ const StudentInterface: React.FC = () => {
                                       />
                                     </div>
                                     <div className="text-sm text-gray-500 mt-2">
-                                      {votes} vote{votes !== 1 ? 's' : ''} out of {totalStudents} students
+                                      {votes} vote{votes !== 1 ? 's' : ''} ({totalVotes} total votes)
                                     </div>
                                   </div>
                                 </div>

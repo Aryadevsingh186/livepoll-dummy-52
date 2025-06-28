@@ -23,18 +23,11 @@ const TeacherDashboard: React.FC = () => {
 
   on('studentJoinRequest', (data: { name: string }) => {
     console.log('TeacherDashboard - Student join request received:', data.name);
-    // Automatically switch to participants tab when a new request comes in
     setActiveTab('participants');
   });
 
   const handleCreateNewQuestion = () => {
     setShowCreatePoll(true);
-  };
-
-  const handleRemovePoll = () => {
-    if (window.confirm('Are you sure you want to remove this poll?')) {
-      emit('removePoll', {});
-    }
   };
 
   return (
@@ -44,7 +37,7 @@ const TeacherDashboard: React.FC = () => {
         <div className="flex-1 flex flex-col">
           {!currentPoll && pollHistory.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6">
-              {/* Student Approval Section - Always show at top when there are pending students */}
+              {/* Student Approval Section */}
               {pendingStudents.length > 0 && (
                 <div className="w-full max-w-4xl mb-8">
                   <StudentApproval />
@@ -122,7 +115,7 @@ const TeacherDashboard: React.FC = () => {
                   </div>
                 )}
 
-                {/* Poll History */}
+                {/* Poll History - Show each poll only once */}
                 {pollHistory.length > 0 && (
                   <div className="space-y-6">
                     <h2 className="text-2xl font-bold text-gray-900">Previous Questions</h2>
@@ -141,8 +134,8 @@ const TeacherDashboard: React.FC = () => {
                         <div className="space-y-4">
                           {poll.options.map((option, optIndex) => {
                             const votes = poll.votes[option] || 0;
-                            const totalStudents = students.length;
-                            const percentage = totalStudents > 0 ? Math.round((votes / totalStudents) * 100) : 0;
+                            const totalVotes = Object.values(poll.votes).reduce((sum, v) => sum + v, 0);
+                            const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
                             
                             return (
                               <div key={option} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -165,7 +158,7 @@ const TeacherDashboard: React.FC = () => {
                                     />
                                   </div>
                                   <div className="text-sm text-gray-500 mt-2">
-                                    {votes} vote{votes !== 1 ? 's' : ''} out of {totalStudents} students
+                                    {votes} vote{votes !== 1 ? 's' : ''} ({totalVotes} total votes from {students.length} students)
                                   </div>
                                 </div>
                               </div>

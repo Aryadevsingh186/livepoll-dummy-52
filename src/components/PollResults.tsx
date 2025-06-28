@@ -22,8 +22,8 @@ const PollResults: React.FC = () => {
       <div className="space-y-4 mb-8">
         {currentPoll.options.map((option, index) => {
           const votes = currentPoll.votes[option] || 0;
-          // Calculate percentage based on total students who joined, not just those who voted
-          const percentage = totalStudents > 0 ? Math.round((votes / totalStudents) * 100) : 0;
+          // Calculate percentage based on total votes (not total students)
+          const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
           
           return (
             <div key={option} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -46,7 +46,7 @@ const PollResults: React.FC = () => {
                   />
                 </div>
                 <div className="text-sm text-gray-500 mt-2">
-                  {votes} vote{votes !== 1 ? 's' : ''} out of {totalStudents} students
+                  {votes} vote{votes !== 1 ? 's' : ''} ({totalVotes} total votes from {totalStudents} students)
                 </div>
               </div>
             </div>
@@ -59,7 +59,7 @@ const PollResults: React.FC = () => {
         <div className="text-center bg-green-50 border border-green-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-green-800 mb-2">Poll Results</h3>
           <p className="text-green-700">
-            Final results based on {totalVotes} votes from {totalStudents} students
+            Final results: {totalVotes} total votes from {totalStudents} students
           </p>
         </div>
       )}
