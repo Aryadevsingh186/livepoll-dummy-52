@@ -2,14 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
-import { setStudentName, setShowResults } from '../store/pollSlice';
+import { setStudentName, setShowResults, leavePoll } from '../store/pollSlice';
 import { useWebSocket } from '../hooks/useWebSocket';
 import StudentJoin from './StudentJoin';
 import PollQuestion from './PollQuestion';
 import PollResults from './PollResults';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Users, Zap, BookOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, Users, Zap, BookOpen, LogOut } from 'lucide-react';
 
 const StudentInterface: React.FC = () => {
   const dispatch = useDispatch();
@@ -36,6 +37,11 @@ const StudentInterface: React.FC = () => {
     dispatch(setShowResults(true));
   });
 
+  on('pollRemoved', () => {
+    setHasAnswered(false);
+    dispatch(setShowResults(false));
+  });
+
   const handleJoin = (name: string) => {
     dispatch(setStudentName(name));
     sessionStorage.setItem('studentName', name);
@@ -47,6 +53,16 @@ const StudentInterface: React.FC = () => {
     emit('submitVote', { studentName, option });
     setHasAnswered(true);
     dispatch(setShowResults(true));
+  };
+
+  const handleLeavePoll = () => {
+    if (window.confirm('Are you sure you want to leave the poll?')) {
+      sessionStorage.removeItem('studentName');
+      emit('removeStudent', { studentName });
+      dispatch(leavePoll());
+      setHasJoined(false);
+      setHasAnswered(false);
+    }
   };
 
   if (!hasJoined) {
@@ -89,6 +105,15 @@ const StudentInterface: React.FC = () => {
                   {timeRemaining}s left
                 </Badge>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLeavePoll}
+                className="bg-red-600/90 text-white border-red-500 hover:bg-red-700/90"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Leave Poll
+              </Button>
             </div>
           </div>
 

@@ -99,6 +99,19 @@ const pollSlice = createSlice({
     removeStudent: (state, action: PayloadAction<string>) => {
       state.students = state.students.filter(s => s.name !== action.payload);
     },
+    removePoll: (state) => {
+      if (state.currentPoll) {
+        state.pollHistory.push(state.currentPoll);
+      }
+      state.currentPoll = null;
+      state.students = state.students.map(s => ({ ...s, hasAnswered: false }));
+      state.timeRemaining = 0;
+      state.showResults = false;
+    },
+    leavePoll: (state) => {
+      state.role = null;
+      state.studentName = '';
+    },
   },
 });
 
@@ -112,6 +125,8 @@ export const {
   endPoll,
   setShowResults,
   removeStudent,
+  removePoll,
+  leavePoll,
 } = pollSlice.actions;
 
 export default pollSlice.reducer;

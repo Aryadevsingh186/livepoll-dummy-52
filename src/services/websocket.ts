@@ -1,6 +1,6 @@
 
 import { store } from '../store';
-import { addStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults } from '../store/pollSlice';
+import { addStudent, submitVote, setTimeRemaining, endPoll, createPoll, removeStudent, setShowResults, removePoll } from '../store/pollSlice';
 
 class WebSocketService {
   private listeners: { [event: string]: Function[] } = {};
@@ -39,6 +39,13 @@ class WebSocketService {
         store.dispatch(removeStudent(data.studentName));
         this.broadcast('studentRemoved', { name: data.studentName });
         this.saveToStorage('students', store.getState().poll.students);
+        break;
+      case 'removePoll':
+        this.endPollTimer();
+        store.dispatch(removePoll());
+        this.broadcast('pollRemoved', {});
+        this.saveToStorage('currentPoll', null);
+        this.saveToStorage('pollActive', false);
         break;
     }
   }

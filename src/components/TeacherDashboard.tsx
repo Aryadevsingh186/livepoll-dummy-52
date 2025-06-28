@@ -9,7 +9,7 @@ import StudentList from './StudentList';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Users, BarChart3, Plus, GraduationCap, Zap } from 'lucide-react';
+import { Clock, Users, BarChart3, Plus, GraduationCap, Zap, Trash2 } from 'lucide-react';
 
 const TeacherDashboard: React.FC = () => {
   const { currentPoll, students, timeRemaining, showResults } = useSelector((state: RootState) => state.poll);
@@ -27,6 +27,12 @@ const TeacherDashboard: React.FC = () => {
 
   const handleCreatePoll = () => {
     setShowCreatePoll(true);
+  };
+
+  const handleRemovePoll = () => {
+    if (window.confirm('Are you sure you want to remove this poll? This action cannot be undone.')) {
+      emit('removePoll', {});
+    }
   };
 
   return (
@@ -84,16 +90,27 @@ const TeacherDashboard: React.FC = () => {
                     {currentPoll ? (
                       <div className="space-y-6">
                         <div className="bg-gray-700/80 p-6 rounded-xl border border-gray-600">
-                          <div className="flex items-center mb-4">
-                            <img 
-                              src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=80&h=80&fit=crop"
-                              alt="Active poll" 
-                              className="w-12 h-12 rounded-lg object-cover border-2 border-gray-500 mr-4"
-                            />
-                            <div>
-                              <h3 className="text-gray-100 font-bold text-xl mb-2">Current Poll</h3>
-                              <p className="text-gray-300 text-lg font-medium">{currentPoll.question}</p>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center">
+                              <img 
+                                src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=80&h=80&fit=crop"
+                                alt="Active poll" 
+                                className="w-12 h-12 rounded-lg object-cover border-2 border-gray-500 mr-4"
+                              />
+                              <div>
+                                <h3 className="text-gray-100 font-bold text-xl mb-2">Current Poll</h3>
+                                <p className="text-gray-300 text-lg font-medium">{currentPoll.question}</p>
+                              </div>
                             </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={handleRemovePoll}
+                              className="bg-red-600 hover:bg-red-700 text-white"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Remove Poll
+                            </Button>
                           </div>
                           <div className="flex items-center space-x-6 mt-4">
                             <Badge variant={currentPoll.isActive ? "default" : "secondary"} className="text-lg px-4 py-2 font-semibold">
