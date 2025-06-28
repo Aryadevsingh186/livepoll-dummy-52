@@ -30,7 +30,6 @@ interface PollState {
   pendingStudents: PendingStudent[];
   role: 'teacher' | 'student' | null;
   studentName: string;
-  pollHistory: Poll[];
   timeRemaining: number;
   showResults: boolean;
   kickedStudents: string[]; // Track kicked students
@@ -42,7 +41,6 @@ const initialState: PollState = {
   pendingStudents: [],
   role: null,
   studentName: '',
-  pollHistory: [],
   timeRemaining: 0,
   showResults: false,
   kickedStudents: [],
@@ -58,7 +56,6 @@ const pollSlice = createSlice({
         state.currentPoll = null;
         state.students = [];
         state.pendingStudents = [];
-        state.pollHistory = [];
         state.timeRemaining = 0;
         state.showResults = false;
         state.kickedStudents = [];
@@ -102,11 +99,6 @@ const pollSlice = createSlice({
       }
     },
     createPoll: (state, action: PayloadAction<{ question: string; options: string[]; maxTime: number }>) => {
-      // Add current poll to history if it exists and isn't already there
-      if (state.currentPoll && !state.pollHistory.some(p => p.id === state.currentPoll!.id)) {
-        state.pollHistory.push({ ...state.currentPoll });
-      }
-      
       const newPoll: Poll = {
         id: Date.now().toString(),
         question: action.payload.question,
@@ -151,10 +143,6 @@ const pollSlice = createSlice({
       }
     },
     removePoll: (state) => {
-      // Add to history if not already there
-      if (state.currentPoll && !state.pollHistory.some(p => p.id === state.currentPoll!.id)) {
-        state.pollHistory.push({ ...state.currentPoll });
-      }
       state.currentPoll = null;
       state.students = state.students.map(s => ({ ...s, hasAnswered: false }));
       state.timeRemaining = 0;
