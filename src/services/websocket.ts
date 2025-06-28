@@ -16,9 +16,7 @@ class WebSocketService {
   private chatMessages: ChatMessage[] = [];
 
   constructor() {
-    // Initialize storage sync
     this.syncFromStorage();
-    // Listen for storage events to sync across tabs
     window.addEventListener('storage', this.handleStorageChange.bind(this));
   }
 
@@ -28,7 +26,6 @@ class WebSocketService {
     switch (event) {
       case 'requestJoin':
         console.log('Student requesting to join:', data.name);
-        // Always add to pending, even if they joined before
         const state = store.getState().poll;
         const existingApproved = state.students.find(s => s.name === data.name);
         const existingPending = state.pendingStudents.find(s => s.name === data.name);
@@ -53,18 +50,52 @@ class WebSocketService {
         this.saveToStorage('pendingStudents', store.getState().poll.pendingStudents);
         break;
       case 'createPoll':
+        console.log('Creating new poll:', data);
+        // End any existing timer first
+        if (this.pollTimer) {
+          clearInterval(this.pollTimer);
+          this.pollTimer = null;
+        }
+        
+        // Create the new poll
         store.dispatch(createPoll(data));
         store.dispatch(setShowResults(false));
-        this.broadcast('newPoll', data);
-        this.saveToStorage('currentPoll', data);
+        
+        // Save to storage
+        const newPollState = store.getState().poll;
+        this.saveToStorage('currentPoll', newPollState.currentPoll);
         this.saveToStorage('pollActive', true);
         this.saveToStorage('showResults', false);
+        this.saveToStorage('students', newPollState.students); // Save updated students with hasAnswered reset
+        
+        // Broadcast to all clients
+        this.broadcast('newPoll', newPollState.currentPoll);
+        
+        // Start the timer
         this.startPollTimer(data.maxTime);
         break;
       case 'submitVote':
+        console.log('Vote submitted:', data);
+        const currentState = store.getState().poll;
+        console.log('Current poll state before vote:', currentState.currentPoll);
+        console.log('Students before vote:', currentState.students);
+        
+        // Dispatch the vote
         store.dispatch(submitVote(data));
+        
+        // Get updated state
+        const updatedState = store.getState().poll;
+        console.log('Updated poll state after vote:', updatedState.currentPoll);
+        console.log('Students after vote:', updatedState.students);
+        
+        // Save updated votes and students to storage
+        this.saveToStorage('pollVotes', updatedState.currentPoll?.votes);
+        this.saveToStorage('students', updatedState.students);
+        
+        // Broadcast the vote update
         this.broadcast('voteSubmitted', data);
-        this.saveToStorage('pollVotes', store.getState().poll.currentPoll?.votes);
+        
+        // Check if all students have answered
         this.checkIfAllAnswered();
         break;
       case 'removeStudent':
@@ -116,7 +147,6 @@ class WebSocketService {
     if (this.listeners[event]) {
       this.listeners[event].forEach(callback => callback(data));
     }
-    // Also save to localStorage for cross-tab communication
     this.saveToStorage(`event_${event}`, { data, timestamp: Date.now() });
   }
 
@@ -151,7 +181,6 @@ class WebSocketService {
         this.listeners[eventType].forEach(callback => callback(eventData.data));
       }
     } else {
-      // Handle data changes
       this.syncFromStorage();
     }
   }
@@ -217,6 +246,12 @@ class WebSocketService {
   private checkIfAllAnswered() {
     const state = store.getState().poll;
     const allAnswered = state.students.every(s => s.hasAnswered);
+    console.log('Checking if all answered:', { 
+      students: state.students, 
+      allAnswered, 
+      studentsCount: state.students.length 
+    });
+    
     if (allAnswered && state.students.length > 0) {
       console.log('All students answered - showing results');
       setTimeout(() => {

@@ -109,21 +109,38 @@ const pollSlice = createSlice({
         maxTime: action.payload.maxTime,
       };
       
+      console.log('Creating new poll in reducer:', newPoll);
       state.currentPoll = newPoll;
       // Reset all students' answered status for new poll
       state.students = state.students.map(s => ({ ...s, hasAnswered: false }));
       state.timeRemaining = action.payload.maxTime;
       state.showResults = false;
+      console.log('Poll created, students reset:', state.students);
     },
     submitVote: (state, action: PayloadAction<{ studentName: string; option: string }>) => {
+      console.log('submitVote reducer called with:', action.payload);
+      console.log('Current poll:', state.currentPoll);
+      console.log('Current students:', state.students);
+      
       if (state.currentPoll && state.currentPoll.isActive) {
-        // Only allow voting if poll is active
         const student = state.students.find(s => s.name === action.payload.studentName);
+        console.log('Found student:', student);
+        
         if (student && !student.hasAnswered) {
-          // Only count vote if student hasn't answered yet
+          console.log('Recording vote for option:', action.payload.option);
+          console.log('Current votes before:', state.currentPoll.votes);
+          
+          // Increment the vote count
           state.currentPoll.votes[action.payload.option]++;
           student.hasAnswered = true;
+          
+          console.log('Current votes after:', state.currentPoll.votes);
+          console.log('Student marked as answered:', student);
+        } else {
+          console.log('Vote not recorded - student already answered or not found');
         }
+      } else {
+        console.log('Vote not recorded - poll not active or not found');
       }
     },
     setTimeRemaining: (state, action: PayloadAction<number>) => {
